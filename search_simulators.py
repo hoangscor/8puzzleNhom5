@@ -1,56 +1,38 @@
-import collections
+"""
+Search algorithm simulators for N-Puzzle game.
+Provides visualization-friendly generators for A*, GBFS, IDA*, and Bi-directional A*.
+"""
 import heapq
 import time
+from search_utils import get_neighbors, manhattan_distance, misplaced_tiles, build_goal_position_map
 
-def get_neighbors(state, size=3):
-    """Find all possible neighbor states from the current state."""
-    neighbors = []
-    empty_idx = state.index(0)
-    r, c = empty_idx // size, empty_idx % size
-    
-    # Empty slot move directions: Up, Down, Left, Right
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for dr, dc in directions:
-        nr, nc = r + dr, c + dc
-        if 0 <= nr < size and 0 <= nc < size:
-            neighbor_idx = nr * size + nc
-            new_state = list(state)
-            new_state[empty_idx], new_state[neighbor_idx] = new_state[neighbor_idx], new_state[empty_idx]
-            neighbors.append((tuple(new_state), neighbor_idx))
-    return neighbors
-
-def manhattan_distance(state, goal_state, size=3):
-    """Heuristic function: Manhattan Distance."""
-    distance = 0
-    for i in range(len(state)):
-        val = state[i]
-        if val != 0:
-            target_idx = goal_state.index(val)
-            r_curr, c_curr = i // size, i % size
-            r_goal, c_goal = target_idx // size, target_idx % size
-            distance += abs(r_curr - r_goal) + abs(c_goal - c_curr)
-    return distance
-
-def misplaced_tiles(state, goal_state, size=3):
-    """Heuristic function: Count of misplaced tiles."""
-    count = 0
-    for i in range(len(state)):
-        val = state[i]
-        if val != 0 and val != goal_state[i]:
-            count += 1
-    return count
 
 def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000):
-    """Solve the puzzle using A* Search algorithm yielding state for visualization."""
+    """
+    Solve the puzzle using A* Search algorithm yielding state for visualization.
+    
+    Args:
+        initial_state: Starting board state (list or tuple)
+        goal_state: Target board state (list or tuple)
+        heuristic_name: "manhattan" or "misplaced"
+        size: Board dimension (3, 4, 5)
+        max_nodes: Maximum nodes to explore before giving up
+    
+    Yields:
+        Dict with status, current_state, and search metrics at each step
+    """
     start_time = time.time()
+    goal_state = tuple(goal_state)
+    goal_pos_map = build_goal_position_map(goal_state)
     
     def get_h(state):
+        state_tuple = tuple(state) if isinstance(state, list) else state
         if heuristic_name == "manhattan":
-            return manhattan_distance(state, goal_state, size)
+            return manhattan_distance(state_tuple, goal_pos_map, size)
         else:
-            return misplaced_tiles(state, goal_state, size)
+            return misplaced_tiles(state_tuple, goal_state, size)
             
-    h_start = get_h(initial_state)
+    h_start = get_h(tuple(initial_state))
     counter = 0
     pq = [(h_start, 0, h_start, counter, tuple(initial_state), [])]
     visited = {tuple(initial_state): 0}
@@ -75,7 +57,7 @@ def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=
             "path_to_current": path
         }
         
-        if list(current_state) == goal_state:
+        if list(current_state) == list(goal_state):
             duration = (time.time() - start_time) * 1000
             state_info["status"] = "success"
             state_info["path"] = path
@@ -104,17 +86,33 @@ def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=
         "total_time_ms": (time.time() - start_time) * 1000
     }
 
+
 def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000):
-    """Solve the puzzle using Greedy Best-First Search yielding state for visualization."""
+    """
+    Solve the puzzle using Greedy Best-First Search yielding state for visualization.
+    
+    Args:
+        initial_state: Starting board state (list or tuple)
+        goal_state: Target board state (list or tuple)
+        heuristic_name: "manhattan" or "misplaced"
+        size: Board dimension (3, 4, 5)
+        max_nodes: Maximum nodes to explore before giving up
+    
+    Yields:
+        Dict with status, current_state, and search metrics at each step
+    """
     start_time = time.time()
+    goal_state = tuple(goal_state)
+    goal_pos_map = build_goal_position_map(goal_state)
     
     def get_h(state):
+        state_tuple = tuple(state) if isinstance(state, list) else state
         if heuristic_name == "manhattan":
-            return manhattan_distance(state, goal_state, size)
+            return manhattan_distance(state_tuple, goal_pos_map, size)
         else:
-            return misplaced_tiles(state, goal_state, size)
+            return misplaced_tiles(state_tuple, goal_state, size)
             
-    h_start = get_h(initial_state)
+    h_start = get_h(tuple(initial_state))
     counter = 0
     pq = [(h_start, h_start, counter, tuple(initial_state), [])]
     visited = {tuple(initial_state)}
@@ -139,7 +137,7 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
             "path_to_current": path
         }
         
-        if list(current_state) == goal_state:
+        if list(current_state) == list(goal_state):
             duration = (time.time() - start_time) * 1000
             state_info["status"] = "success"
             state_info["path"] = path
@@ -167,18 +165,32 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
         "total_time_ms": (time.time() - start_time) * 1000
     }
 
+
 def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
-    """Solve the puzzle using Iterative Deepening A* (IDA*) Search yielding states."""
+    """
+    Solve the puzzle using Iterative Deepening A* (IDA*) Search yielding states.
+    
+    Args:
+        initial_state: Starting board state
+        goal_state: Target board state
+        size: Board dimension
+        max_nodes: Maximum nodes to explore
+    
+    Yields:
+        Dict with search progress information
+    """
     start_time = time.time()
-    nodes_expanded = 0
+    goal_state = tuple(goal_state)
+    goal_pos_map = build_goal_position_map(goal_state)
+    initial_state = tuple(initial_state)
     
     def get_h(state):
-        return manhattan_distance(state, goal_state, size)
+        return manhattan_distance(state, goal_pos_map, size)
         
-    path_states = [tuple(initial_state)]
-    path_moves = []
+    nodes_expanded = 0
     
-    def search(g, threshold):
+    def search(g, threshold, path_states, path_moves):
+        """Recursive depth-first search with threshold pruning."""
         nonlocal nodes_expanded
         current = path_states[-1]
         h = get_h(current)
@@ -198,7 +210,7 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
             "path_to_current": list(path_moves)
         }
         
-        if list(current) == goal_state:
+        if list(current) == list(goal_state):
             return "FOUND", f
             
         if f > threshold:
@@ -214,7 +226,7 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
                 path_states.append(neighbor)
                 path_moves.append(move_idx)
                 
-                res, val = yield from search(g + 1, threshold)
+                res, val = yield from search(g + 1, threshold, path_states, path_moves)
                 if res in ("FOUND", "LIMIT"):
                     return res, val
                     
@@ -228,28 +240,30 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
 
     threshold = get_h(initial_state)
     while True:
-        path_states = [tuple(initial_state)]
+        path_states = [initial_state]
         path_moves = []
         
-        res, val = yield from search(0, threshold)
-        if res == "FOUND":
-            duration = (time.time() - start_time) * 1000
-            yield {
-                "status": "success",
-                "path": path_moves,
-                "nodes_expanded": nodes_expanded,
-                "frontier_size": len(path_states),
-                "explored_size": nodes_expanded,
-                "depth": len(path_moves),
-                "h_score": 0,
-                "f_score": len(path_moves),
-                "total_time_ms": duration
-            }
-            return
-        elif res == "LIMIT" or val == float('inf'):
-            break
-        threshold = val
+        gen = search(0, threshold, path_states, path_moves)
+        last_step = None
         
+        try:
+            while True:
+                step = next(gen)
+                yield step
+                last_step = step
+        except StopIteration:
+            pass
+            
+        if last_step and last_step.get("status") == "success":
+            return
+            
+        if last_step and last_step.get("status") == "failed":
+            if last_step.get("nodes_expanded", 0) >= max_nodes or threshold == float('inf'):
+                break
+            threshold = last_step.get("f_score", threshold + 1)
+        else:
+            break
+
     yield {
         "status": "failed",
         "nodes_expanded": nodes_expanded,
@@ -261,7 +275,18 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
         "total_time_ms": (time.time() - start_time) * 1000
     }
 
+
 def reconstruct_path_to(state, visited_map):
+    """
+    Reconstruct the path from initial state to given state.
+    
+    Args:
+        state: Current state tuple
+        visited_map: Dict mapping state -> (g_cost, parent_state, move_index)
+    
+    Returns:
+        List of move indices to reach this state
+    """
     path = []
     curr = state
     while curr in visited_map:
@@ -273,38 +298,68 @@ def reconstruct_path_to(state, visited_map):
     path.reverse()
     return path
 
+
 def reconstruct_bidirectional_path(collision_state, visited_f, visited_b):
-    # Forward path: initial -> C
+    """
+    Reconstruct path from bidirectional search collision point.
+    
+    Args:
+        collision_state: State where forward and backward searches meet
+        visited_f: Forward search visited map
+        visited_b: Backward search visited map
+    
+    Returns:
+        Complete path from initial to goal state
+    """
     path_f = reconstruct_path_to(collision_state, visited_f)
     
-    # Backward path: C -> goal
     path_b = []
     curr = collision_state
     while curr in visited_b:
         g, parent, move_idx = visited_b[curr]
         if parent is None:
             break
-        # To transition curr -> parent, the tile we move is at parent's empty slot index
         path_b.append(parent.index(0))
         curr = parent
         
     return path_f + path_b
 
+
 def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
-    """Solve the puzzle using Bi-directional A* Search algorithm yielding states."""
+    """
+    Solve the puzzle using Bi-directional A* Search algorithm yielding states.
+    
+    Runs two simultaneous A* searches: forward from initial state and backward
+    from goal state, meeting in the middle.
+    
+    Args:
+        initial_state: Starting board state
+        goal_state: Target board state
+        size: Board dimension
+        max_nodes: Maximum nodes to explore
+    
+    Yields:
+        Dict with search progress and metrics
+    """
     start_time = time.time()
+    goal_state = tuple(goal_state)
+    initial_state = tuple(initial_state)
+    
+    goal_pos_map_f = build_goal_position_map(goal_state)
+    goal_pos_map_b = build_goal_position_map(initial_state)
     
     def get_h_forward(state):
-        return manhattan_distance(state, goal_state, size)
+        return manhattan_distance(state, goal_pos_map_f, size)
+        
     def get_h_backward(state):
-        return manhattan_distance(state, initial_state, size)
+        return manhattan_distance(state, goal_pos_map_b, size)
         
     counter = 0
-    pq_f = [(get_h_forward(initial_state), 0, get_h_forward(initial_state), counter, tuple(initial_state), None, None)]
-    pq_b = [(get_h_backward(goal_state), 0, get_h_backward(goal_state), counter, tuple(goal_state), None, None)]
+    pq_f = [(get_h_forward(initial_state), 0, get_h_forward(initial_state), counter, initial_state, None, None)]
+    pq_b = [(get_h_backward(goal_state), 0, get_h_backward(goal_state), counter, goal_state, None, None)]
     
-    visited_f = {tuple(initial_state): (0, None, None)}
-    visited_b = {tuple(goal_state): (0, None, None)}
+    visited_f = {initial_state: (0, None, None)}
+    visited_b = {goal_state: (0, None, None)}
     
     nodes_expanded = 0
     

@@ -1,26 +1,26 @@
+"""
+BFS solver for N-Puzzle - optimized using shared utilities.
+"""
 import collections
 import time
+from search_utils import get_neighbors
 
-def get_neighbors(state, size=3):
-    """Find all possible neighbor states from the current state."""
-    neighbors = []
-    empty_idx = state.index(0)
-    r, c = empty_idx // size, empty_idx % size
+
+def solve(initial_state, goal_state, size=3):
+    """
+    Solve the puzzle using Breadth-First Search (BFS).
     
-    # Empty slot move directions: Up, Down, Left, Right
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for dr, dc in directions:
-        nr, nc = r + dr, c + dc
-        if 0 <= nr < size and 0 <= nc < size:
-            neighbor_idx = nr * size + nc
-            new_state = list(state)
-            new_state[empty_idx], new_state[neighbor_idx] = new_state[neighbor_idx], new_state[empty_idx]
-            neighbors.append((tuple(new_state), neighbor_idx))
-    return neighbors
-
-def solve(initial_state, goal_state):
-    """Solve the puzzle using Breadth-First Search (BFS)."""
+    Args:
+        initial_state: Starting board state (list)
+        goal_state: Target board state (list)
+        size: Board dimension
+    
+    Returns:
+        Tuple of (path, nodes_explored, duration_ms) where path is list of move indices
+        or None if no solution found.
+    """
     start_time = time.time()
+    goal_state = tuple(goal_state)
     queue = collections.deque([(tuple(initial_state), [])])
     visited = {tuple(initial_state)}
     nodes_explored = 0
@@ -29,11 +29,11 @@ def solve(initial_state, goal_state):
         current_state, path = queue.popleft()
         nodes_explored += 1
         
-        if list(current_state) == goal_state:
+        if current_state == goal_state:
             duration = (time.time() - start_time) * 1000
             return path, nodes_explored, duration
-        
-        for neighbor_state, move_idx in get_neighbors(current_state):
+            
+        for neighbor_state, move_idx in get_neighbors(current_state, size):
             if neighbor_state not in visited:
                 visited.add(neighbor_state)
                 queue.append((neighbor_state, path + [move_idx]))

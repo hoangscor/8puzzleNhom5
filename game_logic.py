@@ -1,6 +1,12 @@
 import random
+from search_utils import get_neighbors
+
 
 class PuzzleGame:
+    """
+    Main logic class for the N-Puzzle game.
+    Manages board state, move validation, and history for undo/redo.
+    """
     """
     Main logic class for the N-Puzzle game.
     Manages board state, move validation, and history for undo/redo.
@@ -102,29 +108,19 @@ class PuzzleGame:
             state = list(self.goal_state)
             steps = 30 if self.size == 4 else 25
             
-            def get_neighbors_state(s):
-                neighbors = []
-                empty_idx = s.index(0)
-                r, c = empty_idx // self.size, empty_idx % self.size
-                directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                for dr, dc in directions:
-                    nr, nc = r + dr, c + dc
-                    if 0 <= nr < self.size and 0 <= nc < self.size:
-                        n_idx = nr * self.size + nc
-                        new_s = list(s)
-                        new_s[empty_idx], new_s[n_idx] = new_s[n_idx], new_s[empty_idx]
-                        neighbors.append(new_s)
-                return neighbors
-                
-            last_state = list(state)
+            state_t = tuple(state)
+            last_state = state
+            
             for _ in range(steps):
-                nb = get_neighbors_state(state)
+                nb = get_neighbors(state_t, self.size)
+                neighbors = [list(n[0]) for n in nb]
                 # Avoid immediately moving back to the last state if possible
-                choices = [n for n in nb if n != last_state]
+                choices = [n for n in neighbors if n != last_state]
                 if not choices:
-                    choices = nb
+                    choices = neighbors
                 last_state = list(state)
                 state = random.choice(choices)
+                state_t = tuple(state)
                 
             self.current_state = state
             
