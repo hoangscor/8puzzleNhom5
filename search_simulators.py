@@ -188,6 +188,7 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
         return manhattan_distance(state, goal_pos_map, size)
         
     nodes_expanded = 0
+    final_path = None
     
     def search(g, threshold, path_states, path_moves):
         """Recursive depth-first search with threshold pruning."""
@@ -198,37 +199,28 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
         
         nodes_expanded += 1
         
-        yield {
-            "status": "searching",
-            "current_state": list(current),
-            "frontier_size": len(path_states),
-            "explored_size": nodes_expanded,
-            "depth": g,
-            "h_score": h,
-            "f_score": f,
-            "nodes_expanded": nodes_expanded,
-            "path_to_current": list(path_moves)
-        }
-        
         if list(current) == list(goal_state):
-            return "FOUND", f
+            return "FOUND", f, list(path_moves)
             
         if f > threshold:
-            return "PRUNED", f
+            return "PRUNED", f, []
             
         if nodes_expanded >= max_nodes:
-            return "LIMIT", f
+            return "LIMIT", f, []
             
         min_val = float('inf')
+        result_path = None
         
         for neighbor, move_idx in get_neighbors(current, size):
             if neighbor not in path_states:
                 path_states.append(neighbor)
                 path_moves.append(move_idx)
                 
-                res, val = yield from search(g + 1, threshold, path_states, path_moves)
-                if res in ("FOUND", "LIMIT"):
-                    return res, val
+                res, val, path = search(g + 1, threshold, path_states, path_moves)
+                if res == "FOUND":
+                    return res, val, path
+                if res == "LIMIT":
+                    return res, val, []
                     
                 if val < min_val:
                     min_val = val
@@ -236,44 +228,67 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
                 path_states.pop()
                 path_moves.pop()
                 
-        return "NOT_FOUND", min_val
+        return "NOT_FOUND", min_val, []
 
     threshold = get_h(initial_state)
+    
     while True:
         path_states = [initial_state]
         path_moves = []
         
-        gen = search(0, threshold, path_states, path_moves)
-        last_step = None
+        # Yield initial state
+        h = get_h(initial_state)
+        yield {
+            "status": "searching",
+            "current_state": list(initial_state),
+            "frontier_size": 1,
+            "explored_size": nodes_expanded,
+            "depth": 0,
+            "h_score": h,
+            "f_score": h,
+            "nodes_expanded": nodes_expanded,
+            "path_to_current": []
+        }
         
-        try:
-            while True:
-                step = next(gen)
-                yield step
-                last_step = step
-        except StopIteration:
-            pass
-            
-        if last_step and last_step.get("status") == "success":
-            return
-            
-        if last_step and last_step.get("status") == "failed":
-            if last_step.get("nodes_expanded", 0) >= max_nodes or threshold == float('inf'):
-                break
-            threshold = last_step.get("f_score", threshold + 1)
+        res, val, path = search(0, threshold, path_states, path_moves)
+        
+        if res == "FOUND":
+            final_path = path
+            break
+        elif res == "LIMIT":
+            break
+        elif val == float('inf'):
+            break
         else:
+            threshold = val
+            
+        if nodes_expanded >= max_nodes:
             break
 
-    yield {
-        "status": "failed",
-        "nodes_expanded": nodes_expanded,
-        "frontier_size": 0,
-        "explored_size": nodes_expanded,
-        "depth": 0,
-        "h_score": 0,
-        "f_score": 0,
-        "total_time_ms": (time.time() - start_time) * 1000
-    }
+    if final_path:
+        duration = (time.time() - start_time) * 1000
+        yield {
+            "status": "success",
+            "path": final_path,
+            "nodes_expanded": nodes_expanded,
+            "frontier_size": 0,
+            "explored_size": nodes_expanded,
+            "depth": len(final_path),
+            "h_score": 0,
+            "f_score": len(final_path),
+            "total_time_ms": duration
+        }
+    else:
+        yield {
+            "status": "failed",
+            "nodes_expanded": nodes_expanded,
+            "frontier_size": 0,
+            "explored_size": nodes_expanded,
+            "depth": 0,
+            "h_score": 0,
+            "f_score": 0,
+            "total_time_ms": (time.time() - start_time) * 1000
+        }
 
 
 def reconstruct_path_to(state, visited_map):

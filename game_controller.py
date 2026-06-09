@@ -332,6 +332,11 @@ class GameController:
     def _run_compare_solvers(self):
         from tkinter import messagebox
         
+        # Warn for large boards
+        if self.board_size >= 8:
+            if not messagebox.askyesno("Cảnh báo", "Bảng 8x8 có thể mất nhiều thời gian để so sánh. Tiếp tục?"):
+                return
+        
         self.stop_simulation()
         
         initial = list(self.game.current_state)
@@ -340,22 +345,53 @@ class GameController:
         max_nodes = 50000 if self.board_size > 5 else 10000
         
         solvers = [
-            ("bi_astar", "Bi-directional A*"),
-            ("idastar", "Iterative Deepening A* (IDA*)"),
-            ("gbfs", "Greedy Best-First (GBFS)"),
-            ("astar_manhattan", "A* (Manhattan Distance)"),
-            ("astar_misplaced", "A* (Misplaced Tiles)")
+            ("bidirectional_astar_simulator", "Bi-directional A*"),
+            ("idastar_simulator", "Iterative Deepening A* (IDA*)"),
+            ("gbfs_simulator", "Greedy Best-First (GBFS)"),
+            ("astar_simulator", "A* (Manhattan Distance)", "manhattan"),
+            ("astar_simulator", "A* (Misplaced Tiles)", "misplaced")
         ]
         
-        for algo_key, algo_name in solvers:
-            gen = getattr(search_simulators, f"{algo_key}_simulator")(initial, goal, size=self.board_size, max_nodes=max_nodes)
-            res = self._run_generator_to_end(gen)
-            results.append({
-                "name": algo_name,
-                "nodes": f"{res['nodes_expanded']:,}" if res["status"] == "success" else "10,000+",
-                "moves": f"{len(res['path'])}" if res["status"] == "success" else "N/A",
-                "time": f"{res['total_time_ms']:.1f}" if res["status"] == "success" else "Limit"
-            })
+        for solver_info in solvers:
+            if len(solver_info) == 3:
+                algo_key, algo_name, heuristic = solver_info
+                try:
+                    gen = getattr(search_simulators, algo_key)(initial, goal, heuristic, size=self.board_size, max_nodes=max_nodes)
+                except Exception as e:
+                    print(f"Error in {algo_name}: {e}")
+                    results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+                    continue
+            else:
+                algo_key, algo_name = solver_info
+                try:
+                    gen = getattr(search_simulators, algo_key)(initial, goal, size=self.board_size, max_nodes=max_nodes)
+                except Exception as e:
+                    print(f"Error in {algo_name}: {e}")
+                    results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+                    continue
+                    
+            try:
+                res = self._run_generator_to_end(gen)
+                if res is None:
+                    status = "failed"
+                    nodes = 0
+                    path = []
+                    time_ms = 0.0
+                else:
+                    status = res.get("status", "failed")
+                    nodes = res.get("nodes_expanded", 0)
+                    path = res.get("path", [])
+                    time_ms = res.get("total_time_ms", 0.0)
+                    
+                results.append({
+                    "name": algo_name,
+                    "nodes": f"{nodes:,}" if status == "success" else "10,000+",
+                    "moves": f"{len(path)}" if status == "success" else "N/A",
+                    "time": f"{time_ms:.1f}" if status == "success" else "Limit"
+                })
+            except Exception as e:
+                print(f"Error processing {algo_name}: {e}")
+                results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
         
         from ui_system import ComparisonModal
         self.comparison_modal = ComparisonModal(results, self._close_compare_solvers)

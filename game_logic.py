@@ -102,11 +102,16 @@ class PuzzleGame:
                     break
             self.current_state = state
         else:
-            # For 4x4 and 5x5, we shuffle by making a limited number of random moves
-            # from the goal state. This guarantees it's solvable and can be solved
-            # by A*, Bi-A*, and IDA* within the node limits (10,000 nodes).
+            # For 4x4, 5x5, 8x8, we shuffle by making a limited number of random moves
+            # from the goal state. This guarantees it's solvable.
             state = list(self.goal_state)
-            steps = 30 if self.size == 4 else 25
+            # More steps for larger boards
+            if self.size == 4:
+                steps = 40
+            elif self.size == 5:
+                steps = 35
+            else:  # 8x8
+                steps = 50
             
             state_t = tuple(state)
             last_state = state

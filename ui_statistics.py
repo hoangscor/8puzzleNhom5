@@ -90,14 +90,14 @@ class GameDashboard:
         # Size Selector Section
         self.elements.append(Label((sub_x2 + 110, dash_rect.y + 85), "KÍCH THƯỚC BÀN CỜ", font_size=15, bold=True, center=True))
         sizes = [
-            ("3x3", 3, sub_x2, 65),
-            ("4x4", 4, sub_x2 + 77, 65),
-            ("5x5", 5, sub_x2 + 155, 65),
-            ("8x8", 8, sub_x2 + 230, 65)
+            ("3x3", 3, sub_x2, 55),
+            ("4x4", 4, sub_x2 + 60, 55),
+            ("5x5", 5, sub_x2 + 120, 55),
+            ("8x8", 8, sub_x2 + 180, 55)
         ]
         for text, val, x, w in sizes:
             cb = lambda v=val: callbacks['change_size'](v)
-            btn = ToggleButton((x, dash_rect.y + 110, w, 28), text, font_size=13, callback=cb)
+            btn = ToggleButton((x, dash_rect.y + 110, w, 28), text, font_size=12, callback=cb)
             self.size_buttons[val] = btn
             self.elements.append(btn)
         

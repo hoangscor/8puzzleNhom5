@@ -1,4 +1,3 @@
-# 8puzzleNhom5
 # 8-Puzzle AI Solver - Trình mô phỏng và so sánh các thuật toán tìm kiếm
 
 ## Mục lục
