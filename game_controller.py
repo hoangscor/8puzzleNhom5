@@ -3,11 +3,12 @@ GameController class to manage game state and callbacks.
 Encapsulates global state from main.py for better maintainability.
 """
 import time
-import threading
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Callable
 import pygame
 from game_logic import PuzzleGame
 import search_simulators
+from image_processor import load_and_split_image
+from ui_system import Tile, get_font
 
 
 class GameController:
@@ -86,7 +87,8 @@ class GameController:
         self.sim_initial_state = list(self.game.current_state)
         initial = list(self.game.current_state)
         goal = list(self.game.goal_state)
-        max_nodes_limit = 10000
+        # Increase node limit for larger boards
+        max_nodes_limit = 50000 if self.board_size > 5 else 10000
         
         if self.current_algo == "bi_astar":
             self.sim_generator = search_simulators.bidirectional_astar_simulator(
@@ -335,6 +337,7 @@ class GameController:
         initial = list(self.game.current_state)
         goal = list(self.game.goal_state)
         results = []
+        max_nodes = 50000 if self.board_size > 5 else 10000
         
         solvers = [
             ("bi_astar", "Bi-directional A*"),
@@ -345,7 +348,7 @@ class GameController:
         ]
         
         for algo_key, algo_name in solvers:
-            gen = getattr(search_simulators, f"{algo_key}_simulator")(initial, goal, size=self.board_size, max_nodes=10000)
+            gen = getattr(search_simulators, f"{algo_key}_simulator")(initial, goal, size=self.board_size, max_nodes=max_nodes)
             res = self._run_generator_to_end(gen)
             results.append({
                 "name": algo_name,
@@ -439,8 +442,3 @@ class GameController:
             messagebox.showinfo("Thành công", f"Đã xuất log bước chạy thành công ra file:\n{file_path}")
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể ghi log ra file: {e}")
-
-
-# Import at module level for _insert_image
-from image_processor import load_and_split_image
-from ui_system import Tile, get_font

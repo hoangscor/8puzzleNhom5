@@ -92,7 +92,8 @@ class GameDashboard:
         sizes = [
             ("3x3", 3, sub_x2, 65),
             ("4x4", 4, sub_x2 + 77, 65),
-            ("5x5", 5, sub_x2 + 155, 65)
+            ("5x5", 5, sub_x2 + 155, 65),
+            ("8x8", 8, sub_x2 + 230, 65)
         ]
         for text, val, x, w in sizes:
             cb = lambda v=val: callbacks['change_size'](v)
