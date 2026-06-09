@@ -3,6 +3,8 @@ GameController class to manage game state and callbacks.
 Encapsulates global state from main.py for better maintainability.
 """
 import time
+import threading
+from typing import Dict, List, Optional, Any, Callable
 import pygame
 from game_logic import PuzzleGame
 import search_simulators

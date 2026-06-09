@@ -2,7 +2,7 @@
 Common search utilities for N-Puzzle algorithms.
 Shared functions to avoid code duplication.
 """
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 
 def get_neighbors(state: Tuple[int, ...], size: int = 3) -> List[Tuple[Tuple[int, ...], int]]:
@@ -17,7 +17,7 @@ def get_neighbors(state: Tuple[int, ...], size: int = 3) -> List[Tuple[Tuple[int
         List of (neighbor_state, move_index) tuples where move_index is the tile
         position that was swapped with the empty slot (0).
     """
-    neighbors = []
+    neighbors: List[Tuple[Tuple[int, ...], int]] = []
     empty_idx = state.index(0)
     r, c = empty_idx // size, empty_idx % size
     
