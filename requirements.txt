@@ -1,0 +1,2 @@
+pygame-ce # Modern alternative with Python 3.14 support
+Pillow # Library for image processing and cropping
