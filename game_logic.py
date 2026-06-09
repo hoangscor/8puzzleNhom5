@@ -7,20 +7,14 @@ class PuzzleGame:
     Main logic class for the N-Puzzle game.
     Manages board state, move validation, and history for undo/redo.
     """
-    """
-    Main logic class for the N-Puzzle game.
-    Manages board state, move validation, and history for undo/redo.
-    """
     def __init__(self, size=3):
         self.size = size
-        # Goal state configurations
         self.goal_preset = "default"
         self.goal_state = list(range(1, size * size)) + [0]
         self.current_state = list(self.goal_state)
-        # Stacks for Undo and Redo operations
         self.history = []
         self.redo_stack = []
-        self.shuffle() # Initial shuffle
+        self.shuffle()
 
     def set_goal_preset(self, preset_name):
         self.goal_preset = preset_name
@@ -41,13 +35,14 @@ class PuzzleGame:
         
         for val in range(1, size * size):
             grid[r][c] = val
-            nr, nc = r + dr[di], c + dc[di]
-            if 0 <= nr < size and 0 <= nc < size and grid[nr][nc] == 0:
-                r, c = nr, nc
-            else:
-                di = (di + 1) % 4
-                r, c = r + dr[di], c + dc[di]
-                
+            while True:
+                nr, nc = r + dr[di], c + dc[di]
+                if 0 <= nr < size and 0 <= nc < size and grid[nr][nc] == 0:
+                    r, c = nr, nc
+                    break
+                else:
+                    di = (di + 1) % 4
+        
         flat = []
         for row in grid:
             flat.extend(row)
@@ -57,9 +52,9 @@ class PuzzleGame:
         size = self.size
         flat = [0] * (size * size)
         val = 1
-        for col in range(size):
-            for row in range(size):
-                if col == size - 1 and row == size - 1:
+        for row in range(size):
+            for col in range(size):
+                if row == size - 1 and col == size - 1:
                     flat[row * size + col] = 0
                 else:
                     flat[row * size + col] = val
