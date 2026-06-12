@@ -52,8 +52,8 @@ class PuzzleGame:
         size = self.size
         flat = [0] * (size * size)
         val = 1
-        for row in range(size):
-            for col in range(size):
+        for col in range(size):
+            for row in range(size):
                 if row == size - 1 and col == size - 1:
                     flat[row * size + col] = 0
                 else:

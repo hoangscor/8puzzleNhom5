@@ -21,7 +21,7 @@ class GameController:
         self.is_finished = False
         self.victory_modal = None
         self.comparison_modal = None
-        self.image_tiles = {}
+        self.image_crops = []
         self.current_image_name = ""
         self.original_image_surface = None
         self.current_image_path = ""
@@ -69,6 +69,17 @@ class GameController:
         self.elapsed_play_time = 0
         self.stop_simulation()
         self.recreate_tiles_ui()
+    
+    def get_tile_image(self, val):
+        """Get the correct image crop for a tile value based on the current goal state."""
+        if not self.image_crops or val == 0:
+            return None
+        # Find the position of val in the goal state
+        try:
+            pos = self.game.goal_state.index(val)
+            return self.image_crops[pos]
+        except (ValueError, IndexError):
+            return None
     
     def stop_simulation(self):
         """Stop any running simulation."""
@@ -228,12 +239,12 @@ class GameController:
         
         if self.current_image_path:
             tile_size = 580 // self.board_size
-            new_tiles, name = load_and_split_image(self.current_image_path, tile_size, self.board_size)
-            if new_tiles:
-                self.image_tiles = new_tiles
+            new_crops, name = load_and_split_image(self.current_image_path, tile_size, self.board_size)
+            if new_crops:
+                self.image_crops = new_crops
                 self.current_image_name = name
         else:
-            self.image_tiles = {}
+            self.image_crops = []
             self.current_image_name = ""
             
         self.recreate_tiles_ui()
@@ -301,6 +312,12 @@ class GameController:
         if self.game.goal_preset == new_preset:
             return
         self.game.set_goal_preset(new_preset)
+        self.is_finished = False
+        self.victory_modal = None
+        self.comparison_modal = None
+        self.has_started_playing = False
+        self.start_play_time = 0
+        self.elapsed_play_time = 0
         self.stop_simulation()
         self.recreate_tiles_ui()
     
@@ -316,9 +333,9 @@ class GameController:
         )
         if file_path:
             tile_size = 580 // self.board_size
-            new_tiles, name = load_and_split_image(file_path, tile_size, self.board_size)
-            if new_tiles:
-                self.image_tiles = new_tiles
+            new_crops, name = load_and_split_image(file_path, tile_size, self.board_size)
+            if new_crops:
+                self.image_crops = new_crops
                 self.current_image_name = name
                 self.current_image_path = file_path
                 

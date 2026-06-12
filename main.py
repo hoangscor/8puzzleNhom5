@@ -196,7 +196,7 @@ def main():
                 if tile:
                     tile.index = i
                     tile.set_target(tile_rect)
-                    tile.image = controller.image_tiles.get(val)
+                    tile.image = controller.get_tile_image(val)
                     
         # Lerp update
         for tile in controller.tiles_ui.values():
