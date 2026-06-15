@@ -25,6 +25,18 @@ class PuzzleGame:
         elif preset_name == "columns":
             self.goal_state = self.generate_columns_goal()
         self.shuffle()
+    
+    def set_custom_goal(self, goal_state_list):
+        """Set a custom goal state with validation."""
+        n = self.size * self.size
+        if len(goal_state_list) != n:
+            return False, f"Cần đúng {n} số"
+        if sorted(goal_state_list) != list(range(n)):
+            return False, f"Cần đúng các số 0 đến {n-1}"
+        self.goal_preset = "custom"
+        self.goal_state = list(goal_state_list)
+        self.shuffle()
+        return True, "OK"
 
     def generate_spiral_goal(self):
         size = self.size

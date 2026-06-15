@@ -45,9 +45,17 @@ class GameDashboard:
         self.game_moves_val = Label((sub_x + 140, dash_rect.y + 68), "0", font_size=14, bold=True)
         self.elements.append(self.game_moves_val)
         
+        # Optimal moves comparison
+        self.comparison_label = Label((sub_x + 105, dash_rect.y + 90), "", font_size=12, color=SECONDARY_ACCENT, center=True)
+        self.elements.append(self.comparison_label)
+        
+        # High Score display
+        self.high_score_label = Label((sub_x + 105, dash_rect.y + 106), "", font_size=11, color=SUCCESS_ACCENT, center=True)
+        self.elements.append(self.high_score_label)
+        
         # Progress Bar (Centered in Section 3A, increased height to 24px)
         from ui_system import ProgressBar
-        self.progress_bar = ProgressBar((sub_x, dash_rect.y + 98, 215, 22))
+        self.progress_bar = ProgressBar((sub_x, dash_rect.y + 122, 215, 22))
         self.elements.append(self.progress_bar)
         
         # Separator line
@@ -123,12 +131,16 @@ class GameDashboard:
         self.elements.append(Label((sub_x2 + 110, dash_rect.y + 284), "KIỂU ĐÍCH ĐẾN", font_size=15, bold=True, center=True))
         goals = [
             ("Mặc định", "default", sub_x2),
-            ("Xoắn ốc", "spiral", sub_x2 + 76),
-            ("Theo cột", "columns", sub_x2 + 152)
+            ("Xoắn ốc", "spiral", sub_x2 + 60),
+            ("Theo cột", "columns", sub_x2 + 120),
+            ("Tù chỉnh", "custom", sub_x2 + 180)
         ]
         for text, key, x in goals:
-            cb = lambda k=key: callbacks['change_goal_preset'](k)
-            btn = ToggleButton((x, dash_rect.y + 306, 68, 28), text, font_size=11, callback=cb)
+            if key == "custom":
+                cb = lambda: callbacks['set_custom_goal']()
+            else:
+                cb = lambda k=key: callbacks['change_goal_preset'](k)
+            btn = ToggleButton((x, dash_rect.y + 306, 55, 28), text, font_size=11, callback=cb)
             self.goal_buttons[key] = btn
             self.elements.append(btn)
             
@@ -154,6 +166,10 @@ class GameDashboard:
             btn = ToggleButton((x, dash_rect.y + 448, 50, 28), text, font_size=12, callback=cb)
             self.speed_buttons[key] = btn
             self.elements.append(btn)
+        
+        # Sound Toggle
+        self.sound_btn = ToggleButton((sub_x2 + 115, dash_rect.y + 448, 105, 28), "🔊 On", font_size=12, callback=callbacks['toggle_sound'])
+        self.elements.append(self.sound_btn)
             
         # Undo / Redo / Export Section
         self.elements.append(Label((sub_x2 + 110, dash_rect.y + 492), "LỊCH SỬ & XUẤT LOG", font_size=15, bold=True, center=True))
@@ -168,6 +184,23 @@ class GameDashboard:
     def update_game_stats(self, elapsed_time_str, moves_count):
         self.game_time_val.text = elapsed_time_str
         self.game_moves_val.text = str(moves_count)
+
+    def update_comparison(self, player_moves, optimal_moves):
+        if optimal_moves is not None and optimal_moves > 0:
+            pct = int((optimal_moves / player_moves) * 100) if player_moves > 0 else 0
+            self.comparison_label.text = f"Tối ưu: {optimal_moves} nước ({pct}%)"
+        else:
+            self.comparison_label.text = ""
+    
+    def update_high_score(self, high_score):
+        if high_score:
+            best_moves = high_score["best_moves"]
+            best_time = high_score["best_time"]
+            mins = int(best_time // 60)
+            secs = int(best_time % 60)
+            self.high_score_label.text = f"🏆 Kỷ lục: {best_moves} nước ({mins:02d}:{secs:02d})"
+        else:
+            self.high_score_label.text = "🏆 Chưa có kỷ lục"
 
     def update_simulation_stats(self, nodes_expanded, frontier_size, depth, h_val, f_val, duration_ms):
         self.nodes_expanded_val.text = str(nodes_expanded)
@@ -196,6 +229,49 @@ class GameDashboard:
     def set_play_state(self, is_playing):
         self.play_btn.text = "Pause" if is_playing else "Play"
         self.play_btn.base_color = DANGER_ACCENT if is_playing else SUCCESS_ACCENT
+
+    def update_sound_button(self, enabled):
+        self.sound_btn.text = "🔊 On" if enabled else "🔇 Off"
+        self.sound_btn.active = enabled
+    
+    def draw_search_overlay(self, screen, explored_positions, frontier_positions, board_size):
+        """Draw semi-transparent overlay showing explored and frontier positions."""
+        if not explored_positions and not frontier_positions:
+            return
+        
+        tile_size = 580 // board_size
+        overlay = pygame.Surface((self.board_rect.width, self.board_rect.height), pygame.SRCALPHA)
+        
+        # Calculate board origin within board_rect
+        board_w = board_size * tile_size
+        board_h = board_size * tile_size
+        start_x = (self.board_rect.width - board_w) // 2
+        start_y = (self.board_rect.height - board_h) // 2
+        
+        for r in range(board_size):
+            for c in range(board_size):
+                rect = pygame.Rect(start_x + c * tile_size, start_y + r * tile_size, tile_size, tile_size)
+                if (r, c) in explored_positions:
+                    pygame.draw.rect(overlay, (255, 140, 50, 35), rect)
+                elif (r, c) in frontier_positions:
+                    pygame.draw.rect(overlay, (0, 200, 255, 50), rect)
+        
+        screen.blit(overlay, self.board_rect.topleft)
+        
+        # Draw legend
+        legend_x = self.board_rect.x + 10
+        legend_y = self.board_rect.y + self.board_rect.height - 25
+        font = pygame.font.SysFont(['segoe ui', 'arial'], 11)
+        
+        # Explored legend
+        pygame.draw.rect(screen, (255, 140, 50, 180), (legend_x, legend_y, 12, 12))
+        txt = font.render("Đã duyệt", True, (200, 200, 220))
+        screen.blit(txt, (legend_x + 16, legend_y))
+        
+        # Frontier legend
+        pygame.draw.rect(screen, (0, 200, 255, 180), (legend_x + 85, legend_y, 12, 12))
+        txt = font.render("Hàng đợi", True, (200, 200, 220))
+        screen.blit(txt, (legend_x + 101, legend_y))
 
     def handle_event(self, event):
         for element in self.elements:

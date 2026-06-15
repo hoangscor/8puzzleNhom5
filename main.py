@@ -8,6 +8,7 @@ from ui_system import Tile, Modal, BG_COLOR, PRIMARY_ACCENT, SECONDARY_ACCENT, B
 from ui_statistics import GameDashboard
 from game_logic import PuzzleGame
 from game_controller import GameController
+from sound_manager import SoundManager
 import search_simulators
 import time
 
@@ -15,6 +16,9 @@ def main():
     controller = GameController(board_size=3)
     
     pygame.init()
+    pygame.mixer.init()
+    sound_manager = SoundManager()
+    controller.sound_manager = sound_manager
     SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("N-Puzzle Search Algorithm Simulator")
@@ -143,6 +147,8 @@ def main():
         # Dashboard updates
         controller.dashboard.update_image_name(controller.current_image_name)
         controller.dashboard.update_game_stats(elapsed_time_str=time_str, moves_count=len(controller.game.history))
+        controller.dashboard.update_comparison(len(controller.game.history), controller.optimal_move_count)
+        controller.dashboard.update_high_score(controller.get_high_score())
         
         # Progress Calculation & Update
         pct, correct, total = controller.game.get_progress()
@@ -153,6 +159,8 @@ def main():
         controller.dashboard.set_active_size(controller.board_size)
         controller.dashboard.set_active_goal_preset(controller.game.goal_preset)
         controller.dashboard.set_play_state(controller.sim_playing)
+        if hasattr(controller, 'sound_manager'):
+            controller.dashboard.update_sound_button(controller.sound_manager.enabled)
         controller.dashboard.update(dt)
         
         if controller.comparison_modal:
@@ -214,6 +222,12 @@ def main():
             
         for tile in controller.tiles_ui.values():
             tile.draw(screen)
+        
+        # Draw search overlay
+        if controller.sim_current_step and controller.sim_status == "searching":
+            explored = controller.sim_current_step.get("explored_positions", set())
+            frontier = controller.sim_current_step.get("frontier_positions", set())
+            controller.dashboard.draw_search_overlay(screen, explored, frontier, controller.board_size)
             
         if controller.solution_replay_active:
             pygame.draw.rect(screen, PRIMARY_ACCENT, controller.dashboard.board_rect.inflate(10, 10), 2, border_radius=12)
@@ -234,12 +248,19 @@ def handle_tile_click(controller, index):
         return
         
     if controller.game.move(index):
+        if hasattr(controller, 'sound_manager'):
+            controller.sound_manager.play("move")
         if not controller.has_started_playing:
             controller.has_started_playing = True
             controller.start_play_time = time.time()
             
         if controller.game.is_goal():
+            if hasattr(controller, 'sound_manager'):
+                controller.sound_manager.play("victory")
             controller.trigger_victory()
+    else:
+        if hasattr(controller, 'sound_manager'):
+            controller.sound_manager.play("error")
 
 if __name__ == "__main__":
     main()

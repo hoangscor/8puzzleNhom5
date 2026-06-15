@@ -3,6 +3,8 @@ GameController class to manage game state and callbacks.
 Encapsulates global state from main.py for better maintainability.
 """
 import time
+import json
+import os
 from typing import Dict, List, Optional, Callable
 import pygame
 from game_logic import PuzzleGame
@@ -25,6 +27,7 @@ class GameController:
         self.current_image_name = ""
         self.original_image_surface = None
         self.current_image_path = ""
+        self.initial_game_state = list(self.game.current_state)
         
         # AI Simulation state
         self.current_algo = "astar_manhattan"
@@ -47,6 +50,9 @@ class GameController:
         self.elapsed_play_time = 0
         self.has_started_playing = False
         
+        # Optimal moves comparison
+        self.optimal_move_count = None
+        
         # Drag and Drop state
         self.dragged_tile = None
         self.drag_start_x = 0
@@ -67,6 +73,8 @@ class GameController:
         self.has_started_playing = False
         self.start_play_time = 0
         self.elapsed_play_time = 0
+        self.optimal_move_count = None
+        self.initial_game_state = list(self.game.current_state)
         self.stop_simulation()
         self.recreate_tiles_ui()
     
@@ -189,7 +197,11 @@ class GameController:
                 move_idx = self.solution_path[self.solution_replay_idx]
                 self.game.move(move_idx)
                 self.solution_replay_idx += 1
+                if hasattr(self, 'sound_manager'):
+                    self.sound_manager.play("move")
                 if self.game.is_goal():
+                    if hasattr(self, 'sound_manager'):
+                        self.sound_manager.play("victory")
                     self.trigger_victory()
     
     def step_sim_backward(self):
@@ -205,11 +217,62 @@ class GameController:
         """Trigger victory modal."""
         from ui_system import Modal
         self.is_finished = True
+        self._compute_optimal_moves()
+        self._save_high_score()
         self.victory_modal = Modal(
             "Bạn đã giải thành công!",
             "Chơi lại", self.reset_game,
             "Không", self.close_modal
         )
+    
+    def _get_high_score_key(self):
+        return f"{self.board_size}x{self.board_size}_{self.game.goal_preset}"
+    
+    def _load_high_scores(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "high_scores.json")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+    
+    def _save_high_score(self):
+        if not self.has_started_playing or len(self.game.history) == 0:
+            return
+        scores = self._load_high_scores()
+        key = self._get_high_score_key()
+        player_moves = len(self.game.history)
+        player_time = self.elapsed_play_time
+        
+        if key not in scores:
+            scores[key] = {"best_moves": player_moves, "best_time": player_time}
+        else:
+            if player_moves < scores[key]["best_moves"]:
+                scores[key] = {"best_moves": player_moves, "best_time": player_time}
+        
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "high_scores.json")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(scores, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+    
+    def get_high_score(self):
+        scores = self._load_high_scores()
+        key = self._get_high_score_key()
+        return scores.get(key, None)
+    
+    def _compute_optimal_moves(self):
+        """Compute optimal move count using A* solver."""
+        import astar_solver
+        initial = self.initial_game_state if self.initial_game_state else self.sim_initial_state
+        if not initial:
+            return
+        try:
+            path, _, _ = astar_solver.solve(initial, self.game.goal_state, self.board_size)
+            self.optimal_move_count = len(path) if path else None
+        except Exception:
+            self.optimal_move_count = None
     
     def close_modal(self):
         """Close victory modal."""
@@ -298,8 +361,67 @@ class GameController:
             'undo': lambda: self.undo(),
             'redo': lambda: self.redo(),
             'export_log': lambda: self._export_solution_log(),
-            'change_goal_preset': lambda p: self._change_goal_preset(p)
+            'change_goal_preset': lambda p: self._change_goal_preset(p),
+            'toggle_sound': lambda: self._toggle_sound(),
+            'set_custom_goal': lambda: self._open_custom_goal_dialog()
         }
+    
+    def _toggle_sound(self):
+        if hasattr(self, 'sound_manager'):
+            return self.sound_manager.toggle()
+        return True
+    
+    def _open_custom_goal_dialog(self):
+        import tkinter as tk
+        from tkinter import messagebox
+        
+        root = tk.Tk()
+        root.title("Nhập trạng thái đích tùy chỉnh")
+        root.geometry("350x300")
+        root.resizable(False, False)
+        root.configure(bg="#1a1a2e")
+        
+        n = self.board_size
+        goal = self.game.goal_state
+        
+        tk.Label(root, text=f"Nhập {n*n} số (0-{n*n-1}):", bg="#1a1a2e", fg="white", font=("Arial", 12)).pack(pady=10)
+        
+        frame = tk.Frame(root, bg="#1a1a2e")
+        frame.pack()
+        
+        entries = []
+        for i in range(n):
+            row_entries = []
+            for j in range(n):
+                e = tk.Entry(frame, width=4, font=("Arial", 16), justify="center", bg="#2a2a4a", fg="white", insertbackground="white")
+                e.grid(row=i, column=j, padx=2, pady=2)
+                e.insert(0, str(goal[i * n + j]))
+                row_entries.append(e)
+            entries.append(row_entries)
+        
+        def confirm():
+            try:
+                values = []
+                for row in entries:
+                    for e in row:
+                        val = int(e.get().strip())
+                        values.append(val)
+                ok, msg = self.game.set_custom_goal(values)
+                if ok:
+                    self.stop_simulation()
+                    self.recreate_tiles_ui()
+                    root.destroy()
+                else:
+                    messagebox.showerror("Lỗi", msg)
+            except ValueError:
+                messagebox.showerror("Lỗi", "Vui lòng nhập số nguyên")
+        
+        btn_frame = tk.Frame(root, bg="#1a1a2e")
+        btn_frame.pack(pady=15)
+        tk.Button(btn_frame, text="Xác nhận", command=confirm, bg="#10b981", fg="white", font=("Arial", 12), width=12).grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame, text="Hủy", command=root.destroy, bg="#ef4444", fg="white", font=("Arial", 12), width=12).grid(row=0, column=1, padx=5)
+        
+        root.mainloop()
     
     def _select_algorithm(self, algo_name):
         self.current_algo = algo_name

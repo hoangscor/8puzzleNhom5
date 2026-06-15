@@ -7,6 +7,16 @@ import time
 from search_utils import get_neighbors, manhattan_distance, misplaced_tiles, build_goal_position_map
 
 
+def get_empty_positions(states, size):
+    """Extract (row, col) positions of empty cell from a set of states."""
+    positions = set()
+    for state in states:
+        idx = state.index(0) if isinstance(state, list) else list(state).index(0)
+        r, c = idx // size, idx % size
+        positions.add((r, c))
+    return positions
+
+
 def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000):
     """
     Solve the puzzle using A* Search algorithm yielding state for visualization.
@@ -54,7 +64,9 @@ def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=
             "h_score": h,
             "f_score": f,
             "nodes_expanded": nodes_expanded,
-            "path_to_current": path
+            "path_to_current": path,
+            "explored_positions": get_empty_positions(visited.keys(), size),
+            "frontier_positions": get_empty_positions([item[4] for item in pq], size)
         }
         
         if list(current_state) == list(goal_state):
@@ -134,7 +146,9 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
             "h_score": h,
             "f_score": h,
             "nodes_expanded": nodes_expanded,
-            "path_to_current": path
+            "path_to_current": path,
+            "explored_positions": get_empty_positions(visited, size),
+            "frontier_positions": get_empty_positions([item[3] for item in pq], size)
         }
         
         if list(current_state) == list(goal_state):
@@ -162,7 +176,9 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
         "depth": 0,
         "h_score": 0,
         "f_score": 0,
-        "total_time_ms": (time.time() - start_time) * 1000
+        "total_time_ms": (time.time() - start_time) * 1000,
+        "explored_positions": get_empty_positions(visited, size),
+        "frontier_positions": set()
     }
 
 
@@ -247,7 +263,9 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
             "h_score": h,
             "f_score": h,
             "nodes_expanded": nodes_expanded,
-            "path_to_current": []
+            "path_to_current": [],
+            "explored_positions": get_empty_positions(path_states, size),
+            "frontier_positions": set()
         }
         
         res, val, path = search(0, threshold, path_states, path_moves)
@@ -276,7 +294,9 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
             "depth": len(final_path),
             "h_score": 0,
             "f_score": len(final_path),
-            "total_time_ms": duration
+            "total_time_ms": duration,
+            "explored_positions": set(),
+            "frontier_positions": set()
         }
     else:
         yield {
@@ -287,7 +307,9 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
             "depth": 0,
             "h_score": 0,
             "f_score": 0,
-            "total_time_ms": (time.time() - start_time) * 1000
+            "total_time_ms": (time.time() - start_time) * 1000,
+            "explored_positions": set(),
+            "frontier_positions": set()
         }
 
 
@@ -397,7 +419,9 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                     "depth": len(path),
                     "h_score": h,
                     "f_score": f,
-                    "total_time_ms": duration
+                    "total_time_ms": duration,
+                    "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                    "frontier_positions": set()
                 }
                 return
                 
@@ -411,7 +435,9 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                 "h_score": h,
                 "f_score": f,
                 "nodes_expanded": nodes_expanded,
-                "path_to_current": reconstruct_path_to(curr, visited_f)
+                "path_to_current": reconstruct_path_to(curr, visited_f),
+                "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                "frontier_positions": get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
             }
             
             for neighbor, move_idx in get_neighbors(curr, size):
@@ -436,7 +462,9 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                     "depth": len(path),
                     "h_score": h,
                     "f_score": f,
-                    "total_time_ms": duration
+                    "total_time_ms": duration,
+                    "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                    "frontier_positions": set()
                 }
                 return
                 
@@ -450,7 +478,9 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                 "h_score": h,
                 "f_score": f,
                 "nodes_expanded": nodes_expanded,
-                "path_to_current": reconstruct_path_to(curr, visited_f)
+                "path_to_current": reconstruct_path_to(curr, visited_f),
+                "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                "frontier_positions": get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
             }
             
             for neighbor, move_idx in get_neighbors(curr, size):
@@ -469,5 +499,7 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
         "depth": 0,
         "h_score": 0,
         "f_score": 0,
-        "total_time_ms": (time.time() - start_time) * 1000
+        "total_time_ms": (time.time() - start_time) * 1000,
+        "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+        "frontier_positions": set()
     }
