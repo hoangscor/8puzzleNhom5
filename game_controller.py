@@ -63,6 +63,7 @@ class GameController:
         # UI components
         self.tiles_ui = {}
         self.dashboard = None
+        self.search_log = []
     
     def reset_game(self):
         """Reset the game to initial state."""
@@ -77,6 +78,120 @@ class GameController:
         self.initial_game_state = list(self.game.current_state)
         self.stop_simulation()
         self.recreate_tiles_ui()
+    
+    def save_game(self, slot=0):
+        """Save game state to a slot (0-4)."""
+        try:
+            saves_dir = os.path.join(os.path.dirname(__file__), 'saves')
+            os.makedirs(saves_dir, exist_ok=True)
+            
+            save_data = {
+                'board_size': self.board_size,
+                'current_state': list(self.game.current_state),
+                'goal_state': list(self.game.goal_state),
+                'current_algo': self.current_algo,
+                'current_speed': self.current_speed,
+                'moves_count': len(self.game.history),
+                'elapsed_time': self.elapsed_play_time,
+                'has_started_playing': self.has_started_playing,
+                'initial_game_state': list(self.initial_game_state),
+                'image_name': self.current_image_name,
+                'image_path': self.current_image_path,
+            }
+            
+            save_path = os.path.join(saves_dir, f'save_slot_{slot}.json')
+            with open(save_path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving game: {e}")
+            return False
+    
+    def load_game(self, slot=0):
+        """Load game state from a slot (0-4)."""
+        try:
+            saves_dir = os.path.join(os.path.dirname(__file__), 'saves')
+            save_path = os.path.join(saves_dir, f'save_slot_{slot}.json')
+            
+            if not os.path.exists(save_path):
+                return False
+            
+            with open(save_path, 'r') as f:
+                save_data = json.load(f)
+            
+            # Restore game state
+            self.board_size = save_data['board_size']
+            self.game = PuzzleGame(size=self.board_size)
+            self.game.current_state = list(save_data['current_state'])
+            self.game.goal_state = list(save_data['goal_state'])
+            self.game.history.clear()
+            self.game.redo_stack.clear()
+            
+            self.current_algo = save_data['current_algo']
+            self.current_speed = save_data['current_speed']
+            self.elapsed_play_time = save_data.get('elapsed_time', 0)
+            self.has_started_playing = save_data.get('has_started_playing', False)
+            self.initial_game_state = list(save_data.get('initial_game_state', self.game.current_state))
+            
+            self.current_image_name = save_data.get('image_name', '')
+            self.current_image_path = save_data.get('image_path', '')
+            
+            self.is_finished = False
+            self.victory_modal = None
+            self.comparison_modal = None
+            self.optimal_move_count = None
+            self.stop_simulation()
+            
+            # Reload image if path exists
+            if self.current_image_path and os.path.exists(self.current_image_path):
+                tile_size = 480 // self.board_size
+                self.image_crops, _ = load_and_split_image(
+                    self.current_image_path,
+                    tile_size,
+                    self.board_size
+                )
+                if self.image_crops:
+                    try:
+                        raw_surf = pygame.image.load(self.current_image_path).convert()
+                        self.original_image_surface = pygame.transform.smoothscale(raw_surf, (200, 160))
+                    except Exception:
+                        self.original_image_surface = None
+                else:
+                    self.image_crops = []
+                    self.original_image_surface = None
+            else:
+                self.image_crops = []
+            
+            self.recreate_tiles_ui()
+            return True
+        except Exception as e:
+            print(f"Error loading game: {e}")
+            return False
+    
+    def get_save_slots(self):
+        """Get list of available save slots with metadata."""
+        saves_dir = os.path.join(os.path.dirname(__file__), 'saves')
+        slots = []
+        
+        for i in range(5):
+            save_path = os.path.join(saves_dir, f'save_slot_{i}.json')
+            if os.path.exists(save_path):
+                try:
+                    with open(save_path, 'r') as f:
+                        data = json.load(f)
+                    slots.append({
+                        'slot': i,
+                        'board_size': data.get('board_size', '?'),
+                        'moves': data.get('moves_count', 0),
+                        'time': data.get('elapsed_time', 0),
+                        'image': data.get('image_name', 'Unknown')
+                    })
+                except:
+                    slots.append({'slot': i, 'empty': True})
+            else:
+                slots.append({'slot': i, 'empty': True})
+        
+        return slots
     
     def get_tile_image(self, val):
         """Get the correct image crop for a tile value based on the current goal state."""
@@ -124,6 +239,8 @@ class GameController:
         elif self.current_algo == "astar_misplaced":
             self.sim_generator = search_simulators.astar_simulator(
                 initial, goal, "misplaced", size=self.board_size, max_nodes=max_nodes_limit)
+        elif self.current_algo == "compare":
+            pass
             
         self.sim_status = "searching"
         self.sim_history = []
@@ -135,11 +252,45 @@ class GameController:
         if not self.sim_generator:
             return
             
+        self.search_log = []
+        algo_names = {
+            "bi_astar": "Bi-A*", "idastar": "IDA*", "gbfs": "GBFS",
+            "astar_manhattan": "A* Manhattan", "astar_misplaced": "A* Misplaced"
+        }
+        algo_display = algo_names.get(self.current_algo, self.current_algo)
+        self.search_log.append(f"Starting {algo_display} search ({self.board_size}x{self.board_size})")
+        self.search_log.append(f"Initial: {self.sim_initial_state}")
+        self.search_log.append(f"Goal:    {self.game.goal_state}")
+        self.search_log.append("---")
+        
         last_step = None
+        step_count = 0
         while True:
             try:
                 step = next(self.sim_generator)
                 last_step = step
+                if step["status"] == "searching":
+                    step_count += 1
+                    nodes = step.get("nodes_expanded", 0)
+                    frontier = step.get("frontier_size", 0)
+                    depth = step.get("depth", 0)
+                    h = step.get("h_score", 0)
+                    f = step.get("f_score", 0)
+                    self.search_log.append(
+                        f"[{nodes:>5}] d={depth} h={h} f={f} frontier={frontier}"
+                    )
+                elif step["status"] == "success":
+                    path_len = len(step.get("path", []))
+                    nodes = step.get("nodes_expanded", 0)
+                    dur = step.get("total_time_ms", 0)
+                    self.search_log.append("---")
+                    self.search_log.append(f"SOLVED in {dur:.1f}ms")
+                    self.search_log.append(f"Nodes explored: {nodes:,}")
+                    self.search_log.append(f"Solution length: {path_len} moves")
+                elif step["status"] == "failed":
+                    nodes = step.get("nodes_expanded", 0)
+                    self.search_log.append("---")
+                    self.search_log.append(f"FAILED (explored {nodes:,} nodes)")
                 if step["status"] in ("success", "failed"):
                     break
             except StopIteration:
@@ -220,9 +371,9 @@ class GameController:
         self._compute_optimal_moves()
         self._save_high_score()
         self.victory_modal = Modal(
-            "Bạn đã giải thành công!",
-            "Chơi lại", self.reset_game,
-            "Không", self.close_modal
+            "Puzzle solved successfully!",
+            "Play Again", self.reset_game,
+            "No", self.close_modal
         )
     
     def _get_high_score_key(self):
@@ -301,7 +452,7 @@ class GameController:
         self.stop_simulation()
         
         if self.current_image_path:
-            tile_size = 580 // self.board_size
+            tile_size = 480 // self.board_size
             new_crops, name = load_and_split_image(self.current_image_path, tile_size, self.board_size)
             if new_crops:
                 self.image_crops = new_crops
@@ -321,7 +472,7 @@ class GameController:
         if not self.dashboard:
             return
             
-        tile_size = 580 // self.board_size
+        tile_size = 480 // self.board_size
         board_rect = self.dashboard.board_rect
         start_x = board_rect.x + (board_rect.width - (self.board_size * tile_size)) // 2
         start_y = board_rect.y + (board_rect.height - (self.board_size * tile_size)) // 2
@@ -363,7 +514,9 @@ class GameController:
             'export_log': lambda: self._export_solution_log(),
             'change_goal_preset': lambda p: self._change_goal_preset(p),
             'toggle_sound': lambda: self._toggle_sound(),
-            'set_custom_goal': lambda: self._open_custom_goal_dialog()
+            'set_custom_goal': lambda: self._open_custom_goal_dialog(),
+            'save_game': lambda: self._open_save_dialog(),
+            'load_game': lambda: self._open_load_dialog()
         }
     
     def _toggle_sound(self):
@@ -371,60 +524,26 @@ class GameController:
             return self.sound_manager.toggle()
         return True
     
+    def _open_save_dialog(self):
+        """Save game directly to slot 0."""
+        if self.save_game(slot=0):
+            pass
+    
+    def _open_load_dialog(self):
+        """Load game directly from slot 0."""
+        self.load_game(slot=0)
+    
     def _open_custom_goal_dialog(self):
-        import tkinter as tk
-        from tkinter import messagebox
-        
-        root = tk.Tk()
-        root.title("Nhập trạng thái đích tùy chỉnh")
-        root.geometry("350x300")
-        root.resizable(False, False)
-        root.configure(bg="#1a1a2e")
-        
-        n = self.board_size
-        goal = self.game.goal_state
-        
-        tk.Label(root, text=f"Nhập {n*n} số (0-{n*n-1}):", bg="#1a1a2e", fg="white", font=("Arial", 12)).pack(pady=10)
-        
-        frame = tk.Frame(root, bg="#1a1a2e")
-        frame.pack()
-        
-        entries = []
-        for i in range(n):
-            row_entries = []
-            for j in range(n):
-                e = tk.Entry(frame, width=4, font=("Arial", 16), justify="center", bg="#2a2a4a", fg="white", insertbackground="white")
-                e.grid(row=i, column=j, padx=2, pady=2)
-                e.insert(0, str(goal[i * n + j]))
-                row_entries.append(e)
-            entries.append(row_entries)
-        
-        def confirm():
-            try:
-                values = []
-                for row in entries:
-                    for e in row:
-                        val = int(e.get().strip())
-                        values.append(val)
-                ok, msg = self.game.set_custom_goal(values)
-                if ok:
-                    self.stop_simulation()
-                    self.recreate_tiles_ui()
-                    root.destroy()
-                else:
-                    messagebox.showerror("Lỗi", msg)
-            except ValueError:
-                messagebox.showerror("Lỗi", "Vui lòng nhập số nguyên")
-        
-        btn_frame = tk.Frame(root, bg="#1a1a2e")
-        btn_frame.pack(pady=15)
-        tk.Button(btn_frame, text="Xác nhận", command=confirm, bg="#10b981", fg="white", font=("Arial", 12), width=12).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame, text="Hủy", command=root.destroy, bg="#ef4444", fg="white", font=("Arial", 12), width=12).grid(row=0, column=1, padx=5)
-        
-        root.mainloop()
+        """Custom goal: cycle through preset goals instead."""
+        presets = ["default", "spiral", "columns"]
+        current_idx = presets.index(self.game.goal_preset) if self.game.goal_preset in presets else 0
+        next_idx = (current_idx + 1) % len(presets)
+        self._change_goal_preset(presets[next_idx])
     
     def _select_algorithm(self, algo_name):
-        self.current_algo = algo_name
+        algo_map = {"Bi-A*": "bi_astar", "IDA*": "idastar", "A* Manhattan": "astar_manhattan",
+                    "A* misplaced": "astar_misplaced", "GBFS": "gbfs", "Compare all": "compare"}
+        self.current_algo = algo_map.get(algo_name, algo_name)
         self.stop_simulation()
     
     def _select_speed(self, speed_name):
@@ -445,43 +564,52 @@ class GameController:
     
     def _insert_image(self):
         import tkinter as tk
-        from tkinter import filedialog, messagebox
+        from tkinter import filedialog
+        import threading
         
         if self.is_finished or self.sim_status == "searching" or self.sim_playing or self.solution_replay_active:
             return
-        file_path = filedialog.askopenfilename(
-            title="Chọn ảnh cho Puzzle",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.webp *.svg"), ("All files", "*.*")]
-        )
-        if file_path:
-            tile_size = 580 // self.board_size
-            new_crops, name = load_and_split_image(file_path, tile_size, self.board_size)
-            if new_crops:
-                self.image_crops = new_crops
-                self.current_image_name = name
-                self.current_image_path = file_path
-                
-                try:
-                    raw_surf = pygame.image.load(file_path).convert()
-                    self.original_image_surface = pygame.transform.smoothscale(raw_surf, (200, 160))
-                except Exception as e:
-                    print(f"Error loading preview: {e}")
-                    self.original_image_surface = None
+        
+        def open_file_dialog():
+            temp_root = tk.Tk()
+            temp_root.withdraw()
+            temp_root.attributes('-topmost', True)
+            path = filedialog.askopenfilename(
+                parent=temp_root,
+                title="Choose Puzzle Image",
+                filetypes=[("Image files", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")]
+            )
+            temp_root.destroy()
+            if path:
+                self._apply_image(path)
+        
+        threading.Thread(target=open_file_dialog, daemon=True).start()
+    
+    def _apply_image(self, file_path):
+        tile_size = 480 // self.board_size
+        new_crops, name = load_and_split_image(file_path, tile_size, self.board_size)
+        if new_crops:
+            self.image_crops = new_crops
+            self.current_image_name = name
+            self.current_image_path = file_path
+            try:
+                raw_surf = pygame.image.load(file_path).convert()
+                self.original_image_surface = pygame.transform.smoothscale(raw_surf, (200, 160))
+            except Exception as e:
+                print(f"Error loading preview: {e}")
+                self.original_image_surface = None
     
     def _run_compare_solvers(self):
-        from tkinter import messagebox
-        
-        # Warn for large boards
-        if self.board_size >= 8:
-            if not messagebox.askyesno("Cảnh báo", "Bảng 8x8 có thể mất nhiều thời gian để so sánh. Tiếp tục?"):
-                return
+        import threading
         
         self.stop_simulation()
+        self.comparison_modal = None
+        self._compare_running = True
         
         initial = list(self.game.current_state)
         goal = list(self.game.goal_state)
-        results = []
-        max_nodes = 50000 if self.board_size > 5 else 10000
+        board_size = self.board_size
+        max_nodes = 50000 if board_size > 5 else 10000
         
         solvers = [
             ("bidirectional_astar_simulator", "Bi-directional A*"),
@@ -491,49 +619,49 @@ class GameController:
             ("astar_simulator", "A* (Misplaced Tiles)", "misplaced")
         ]
         
-        for solver_info in solvers:
-            if len(solver_info) == 3:
-                algo_key, algo_name, heuristic = solver_info
-                try:
-                    gen = getattr(search_simulators, algo_key)(initial, goal, heuristic, size=self.board_size, max_nodes=max_nodes)
-                except Exception as e:
-                    print(f"Error in {algo_name}: {e}")
-                    results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
-                    continue
-            else:
-                algo_key, algo_name = solver_info
-                try:
-                    gen = getattr(search_simulators, algo_key)(initial, goal, size=self.board_size, max_nodes=max_nodes)
-                except Exception as e:
-                    print(f"Error in {algo_name}: {e}")
-                    results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
-                    continue
-                    
-            try:
-                res = self._run_generator_to_end(gen)
-                if res is None:
-                    status = "failed"
-                    nodes = 0
-                    path = []
-                    time_ms = 0.0
+        def run_in_background():
+            results = []
+            for solver_info in solvers:
+                if not self._compare_running:
+                    return
+                if len(solver_info) == 3:
+                    algo_key, algo_name, heuristic = solver_info
+                    try:
+                        gen = getattr(search_simulators, algo_key)(initial, goal, heuristic, size=board_size, max_nodes=max_nodes, for_compare=True)
+                    except Exception as e:
+                        results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+                        continue
                 else:
-                    status = res.get("status", "failed")
-                    nodes = res.get("nodes_expanded", 0)
-                    path = res.get("path", [])
-                    time_ms = res.get("total_time_ms", 0.0)
-                    
-                results.append({
-                    "name": algo_name,
-                    "nodes": f"{nodes:,}" if status == "success" else "10,000+",
-                    "moves": f"{len(path)}" if status == "success" else "N/A",
-                    "time": f"{time_ms:.1f}" if status == "success" else "Limit"
-                })
-            except Exception as e:
-                print(f"Error processing {algo_name}: {e}")
-                results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+                    algo_key, algo_name = solver_info
+                    try:
+                        gen = getattr(search_simulators, algo_key)(initial, goal, size=board_size, max_nodes=max_nodes, for_compare=True)
+                    except Exception as e:
+                        results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+                        continue
+                
+                try:
+                    res = self._run_generator_to_end(gen)
+                    if res is None:
+                        results.append({"name": algo_name, "nodes": "10,000+", "moves": "N/A", "time": "Limit"})
+                    else:
+                        status = res.get("status", "failed")
+                        nodes = res.get("nodes_expanded", 0)
+                        path = res.get("path", [])
+                        time_ms = res.get("total_time_ms", 0.0)
+                        results.append({
+                            "name": algo_name,
+                            "nodes": f"{nodes:,}" if status == "success" else "10,000+",
+                            "moves": f"{len(path)}" if status == "success" else "N/A",
+                            "time": f"{time_ms:.1f}" if status == "success" else "Limit"
+                        })
+                except Exception as e:
+                    results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
+            
+            self._compare_results = results
         
-        from ui_system import ComparisonModal
-        self.comparison_modal = ComparisonModal(results, self._close_compare_solvers)
+        self._compare_results = None
+        self._compare_thread = threading.Thread(target=run_in_background, daemon=True)
+        self._compare_thread.start()
     
     def _run_generator_to_end(self, gen):
         last_step = None
@@ -547,73 +675,90 @@ class GameController:
                 break
         return last_step
     
+    def _run_solver_fast(self, solver_func, initial, goal, size, max_nodes):
+        """Run a solver generator to completion, skipping expensive intermediate state."""
+        last_step = None
+        try:
+            for step in solver_func:
+                last_step = step
+                if step["status"] in ("success", "failed"):
+                    break
+        except Exception:
+            pass
+        return last_step
+    
     def _close_compare_solvers(self):
+        self._compare_running = False
         self.comparison_modal = None
     
     def _export_solution_log(self):
-        from tkinter import messagebox, filedialog
+        import threading
         
         if not self.solution_path:
-            messagebox.showwarning("Cảnh báo", "Chưa có lời giải nào được tìm thấy. Hãy chạy thuật toán trước!")
             return
+        
+        def generate_log_content():
+            algo_display_names = {
+                "bi_astar": "Bi-directional A* (A* hai chieu)",
+                "idastar": "Iterative Deepening A* (IDA*)",
+                "gbfs": "Greedy Best-First Search (GBFS)",
+                "astar_manhattan": "A* (Manhattan Distance)",
+                "astar_misplaced": "A* (Misplaced Tiles)"
+            }
+            lines = []
+            lines.append("==================================================")
+            lines.append("             N-PUZZLE SOLUTION LOG")
+            lines.append("==================================================\n")
+            lines.append(f"Thuat toan: {algo_display_names.get(self.current_algo, self.current_algo)}")
+            lines.append(f"Kich thuoc ban co: {self.board_size}x{self.board_size}")
+            lines.append(f"Trang thai bat dau: {self.sim_initial_state}")
+            lines.append(f"Trang thai dich: {self.game.goal_state}")
+            lines.append(f"Tong so buoc di chuyen: {len(self.solution_path)}\n")
+            lines.append("Danh sach cac buoc di chuyen chi tiet:")
+            lines.append("--------------------------------------------------")
             
-        file_path = filedialog.asksaveasfilename(
-            title="Lưu log bước chạy",
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-            initialfile=f"log_giai_{self.current_algo}_{self.board_size}x{self.board_size}.txt"
-        )
-        if not file_path:
-            return
+            curr_state = list(self.sim_initial_state)
+            size = self.board_size
+            for step_no, move_idx in enumerate(self.solution_path, 1):
+                empty_idx = curr_state.index(0)
+                r_empty, c_empty = empty_idx // size, empty_idx % size
+                r_tile, c_tile = move_idx // size, move_idx % size
+                
+                direction = ""
+                if r_tile < r_empty: direction = "XUONG (DOWN)"
+                elif r_tile > r_empty: direction = "LEN (UP)"
+                elif c_tile < c_empty: direction = "SANG PHAI (RIGHT)"
+                elif c_tile > c_empty: direction = "SANG TRAI (LEFT)"
+                
+                tile_val = curr_state[move_idx]
+                lines.append(f"Buoc {step_no:02d}: Di chuyen o so {tile_val} {direction} (tu vi tri {move_idx} sang o trong {empty_idx})")
+                
+                curr_state[empty_idx], curr_state[move_idx] = curr_state[move_idx], curr_state[empty_idx]
             
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write("==================================================\n")
-                f.write("             N-PUZZLE SOLUTION LOG\n")
-                f.write("==================================================\n\n")
-                
-                algo_display_names = {
-                    "bi_astar": "Bi-directional A* (A* hai chiều)",
-                    "idastar": "Iterative Deepening A* (IDA*)",
-                    "gbfs": "Greedy Best-First Search (GBFS)",
-                    "astar_manhattan": "A* (Manhattan Distance)",
-                    "astar_misplaced": "A* (Misplaced Tiles)"
-                }
-                f.write(f"Thuật toán sử dụng: {algo_display_names.get(self.current_algo, self.current_algo)}\n")
-                f.write(f"Kích thước bàn cờ: {self.board_size}x{self.board_size}\n")
-                f.write(f"Trạng thái bắt đầu: {self.sim_initial_state}\n")
-                f.write(f"Trạng thái đích: {self.game.goal_state}\n")
-                f.write(f"Tổng số bước di chuyển: {len(self.solution_path)}\n\n")
-                
-                f.write("Danh sách các bước di chuyển chi tiết:\n")
-                f.write("--------------------------------------------------\n")
-                
-                curr_state = list(self.sim_initial_state)
-                size = self.board_size
-                for step_no, move_idx in enumerate(self.solution_path, 1):
-                    empty_idx = curr_state.index(0)
-                    r_empty, c_empty = empty_idx // size, empty_idx % size
-                    r_tile, c_tile = move_idx // size, move_idx % size
-                    
-                    direction = ""
-                    if r_tile < r_empty:
-                        direction = "XUỐNG (DOWN)"
-                    elif r_tile > r_empty:
-                        direction = "LÊN (UP)"
-                    elif c_tile < c_empty:
-                        direction = "SANG PHẢI (RIGHT)"
-                    elif c_tile > c_empty:
-                        direction = "SANG TRÁI (LEFT)"
-                    
-                    tile_val = curr_state[move_idx]
-                    f.write(f"Bước {step_no:02d}: Di chuyển ô số {tile_val} {direction} (từ vị trí {move_idx} sang ô trống {empty_idx})\n")
-                    
-                    curr_state[empty_idx], curr_state[move_idx] = curr_state[move_idx], curr_state[empty_idx]
-                    
-                f.write("--------------------------------------------------\n")
-                f.write("Trạng thái kết thúc: Đã đạt mục tiêu!\n")
-                f.write("==================================================\n")
-                
-            messagebox.showinfo("Thành công", f"Đã xuất log bước chạy thành công ra file:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể ghi log ra file: {e}")
+            lines.append("--------------------------------------------------")
+            lines.append("Trang thai ket thuc: Da dat muc tieu!")
+            lines.append("==================================================")
+            return "\n".join(lines)
+        
+        content = generate_log_content()
+        default_name = f"log_giai_{self.current_algo}_{self.board_size}x{self.board_size}.txt"
+        
+        def open_save_dialog():
+            import tkinter as tk
+            from tkinter import filedialog
+            temp_root = tk.Tk()
+            temp_root.withdraw()
+            temp_root.attributes('-topmost', True)
+            path = filedialog.asksaveasfilename(
+                parent=temp_root,
+                title="Save Solution Log",
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                initialfile=default_name
+            )
+            temp_root.destroy()
+            if path:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+        
+        threading.Thread(target=open_save_dialog, daemon=True).start()

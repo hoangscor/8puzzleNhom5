@@ -30,9 +30,9 @@ class PuzzleGame:
         """Set a custom goal state with validation."""
         n = self.size * self.size
         if len(goal_state_list) != n:
-            return False, f"Cần đúng {n} số"
+            return False, f"Need exactly {n} numbers"
         if sorted(goal_state_list) != list(range(n)):
-            return False, f"Cần đúng các số 0 đến {n-1}"
+            return False, f"Need numbers 0 to {n-1}"
         self.goal_preset = "custom"
         self.goal_state = list(goal_state_list)
         self.shuffle()

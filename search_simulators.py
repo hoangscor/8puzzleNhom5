@@ -17,7 +17,7 @@ def get_empty_positions(states, size):
     return positions
 
 
-def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000):
+def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000, for_compare=False):
     """
     Solve the puzzle using A* Search algorithm yielding state for visualization.
     
@@ -65,8 +65,8 @@ def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=
             "f_score": f,
             "nodes_expanded": nodes_expanded,
             "path_to_current": path,
-            "explored_positions": get_empty_positions(visited.keys(), size),
-            "frontier_positions": get_empty_positions([item[4] for item in pq], size)
+            "explored_positions": set() if for_compare else get_empty_positions(visited.keys(), size),
+            "frontier_positions": set() if for_compare else get_empty_positions([item[4] for item in pq], size)
         }
         
         if list(current_state) == list(goal_state):
@@ -99,7 +99,7 @@ def astar_simulator(initial_state, goal_state, heuristic_name="manhattan", size=
     }
 
 
-def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000):
+def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3, max_nodes=10000, for_compare=False):
     """
     Solve the puzzle using Greedy Best-First Search yielding state for visualization.
     
@@ -147,8 +147,8 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
             "f_score": h,
             "nodes_expanded": nodes_expanded,
             "path_to_current": path,
-            "explored_positions": get_empty_positions(visited, size),
-            "frontier_positions": get_empty_positions([item[3] for item in pq], size)
+            "explored_positions": set() if for_compare else get_empty_positions(visited, size),
+            "frontier_positions": set() if for_compare else get_empty_positions([item[3] for item in pq], size)
         }
         
         if list(current_state) == list(goal_state):
@@ -177,12 +177,12 @@ def gbfs_simulator(initial_state, goal_state, heuristic_name="manhattan", size=3
         "h_score": 0,
         "f_score": 0,
         "total_time_ms": (time.time() - start_time) * 1000,
-        "explored_positions": get_empty_positions(visited, size),
+        "explored_positions": set(),
         "frontier_positions": set()
     }
 
 
-def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
+def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000, for_compare=False):
     """
     Solve the puzzle using Iterative Deepening A* (IDA*) Search yielding states.
     
@@ -264,7 +264,7 @@ def idastar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
             "f_score": h,
             "nodes_expanded": nodes_expanded,
             "path_to_current": [],
-            "explored_positions": get_empty_positions(path_states, size),
+            "explored_positions": set() if for_compare else get_empty_positions(path_states, size),
             "frontier_positions": set()
         }
         
@@ -362,7 +362,7 @@ def reconstruct_bidirectional_path(collision_state, visited_f, visited_b):
     return path_f + path_b
 
 
-def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=10000):
+def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=10000, for_compare=False):
     """
     Solve the puzzle using Bi-directional A* Search algorithm yielding states.
     
@@ -420,7 +420,7 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                     "h_score": h,
                     "f_score": f,
                     "total_time_ms": duration,
-                    "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                    "explored_positions": set(),
                     "frontier_positions": set()
                 }
                 return
@@ -436,8 +436,8 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                 "f_score": f,
                 "nodes_expanded": nodes_expanded,
                 "path_to_current": reconstruct_path_to(curr, visited_f),
-                "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
-                "frontier_positions": get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
+                "explored_positions": set() if for_compare else get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                "frontier_positions": set() if for_compare else get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
             }
             
             for neighbor, move_idx in get_neighbors(curr, size):
@@ -463,7 +463,7 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                     "h_score": h,
                     "f_score": f,
                     "total_time_ms": duration,
-                    "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                    "explored_positions": set(),
                     "frontier_positions": set()
                 }
                 return
@@ -479,8 +479,8 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
                 "f_score": f,
                 "nodes_expanded": nodes_expanded,
                 "path_to_current": reconstruct_path_to(curr, visited_f),
-                "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
-                "frontier_positions": get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
+                "explored_positions": set() if for_compare else get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+                "frontier_positions": set() if for_compare else get_empty_positions([item[4] for item in pq_f] + [item[4] for item in pq_b], size)
             }
             
             for neighbor, move_idx in get_neighbors(curr, size):
@@ -500,6 +500,6 @@ def bidirectional_astar_simulator(initial_state, goal_state, size=3, max_nodes=1
         "h_score": 0,
         "f_score": 0,
         "total_time_ms": (time.time() - start_time) * 1000,
-        "explored_positions": get_empty_positions(list(visited_f.keys()) + list(visited_b.keys()), size),
+        "explored_positions": set(),
         "frontier_positions": set()
     }
