@@ -56,12 +56,11 @@ class GameDashboard:
         # ── Header ──
         self.elements.append(Label((BOARD_X, 20), "N-PUZZLE", font_size=31, bold=True))
         self.elements.append(Label((BOARD_X + 178, 31), "Search Lab", font_size=14, color=t("secondary"), bold=True))
-        self.image_label = Label((PANEL_X, 28), "Image: Digits",
-                                 font_size=12, color=t("subtext"))
+        self.image_label = Label((PANEL_X, 28), "Image: Digits",font_size=12, bold=True, color=t("secondary"))
         self.elements.append(self.image_label)
 
         # FPS counter
-        self.fps_label = Label((SCREEN_W - 92, 28), "FPS: 60", font_size=11, color=t("subtext"))
+        self.fps_label = Label((SCREEN_W - 92, 28), "FPS: 60", font_size=12, bold=True, color=t("secondary"))
         self.elements.append(self.fps_label)
 
         # ── Left: Board ──
