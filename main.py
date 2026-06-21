@@ -2,8 +2,7 @@ import pygame
 import sys
 import os
 from image_processor import load_and_split_image
-from ui_system import (Tile, Modal, BG_COLOR, PRIMARY_ACCENT, SECONDARY_ACCENT, BORDER_COLOR,
-                       get_font, draw_gradient_background, t, SCREEN_W, SCREEN_H)
+from ui_system import draw_gradient_background, t, SCREEN_W, SCREEN_H
 from ui_statistics import GameDashboard
 from game_logic import PuzzleGame
 from game_controller import GameController
@@ -61,13 +60,13 @@ def main():
                             if col - 1 >= 0:
                                 target_idx = row * controller.board_size + (col - 1)
                         elif event.key == pygame.K_s and (event.mod & pygame.KMOD_CTRL):
-                            if controller.save_game(slot=0):
-                                if hasattr(controller, 'sound_manager'):
-                                    controller.sound_manager.play("move")
+                            controller._open_save_dialog()
+                            if hasattr(controller, 'sound_manager'):
+                                controller.sound_manager.play("move")
                         elif event.key == pygame.K_l and (event.mod & pygame.KMOD_CTRL):
-                            if controller.load_game(slot=0):
-                                if hasattr(controller, 'sound_manager'):
-                                    controller.sound_manager.play("move")
+                            controller._open_load_dialog()
+                            if hasattr(controller, 'sound_manager'):
+                                controller.sound_manager.play("move")
 
                         if target_idx is not None:
                             handle_tile_click(controller, target_idx)
@@ -226,7 +225,7 @@ def main():
             img_x = preview_rect.x + (preview_rect.width - new_w) // 2
             img_y = preview_rect.y + (preview_rect.height - new_h) // 2
             screen.blit(scaled_img, (img_x, img_y))
-            pygame.draw.rect(screen, BORDER_COLOR, preview_rect, 1, border_radius=8)
+            pygame.draw.rect(screen, t("border"), preview_rect, 1, border_radius=8)
 
         for tile in controller.tiles_ui.values():
             tile.draw(screen)
@@ -238,8 +237,8 @@ def main():
             controller.dashboard.draw_search_overlay(screen, explored, frontier, controller.board_size)
 
         if controller.solution_replay_active:
-            pygame.draw.rect(screen, PRIMARY_ACCENT, controller.dashboard.board_rect.inflate(10, 10), 2, border_radius=12)
-            pygame.draw.rect(screen, SECONDARY_ACCENT, controller.dashboard.board_rect.inflate(14, 14), 1, border_radius=14)
+            pygame.draw.rect(screen, t("primary"), controller.dashboard.board_rect.inflate(8, 8), 2, border_radius=16)
+            pygame.draw.rect(screen, t("secondary"), controller.dashboard.board_rect.inflate(14, 14), 1, border_radius=18)
 
         if controller.comparison_modal:
             controller.comparison_modal.draw(screen)

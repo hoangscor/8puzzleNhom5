@@ -3,43 +3,43 @@ import pygame
 # ─── Theme System ────────────────────────────────────────────────────────────
 
 DARK_COLORS = {
-    "bg": (12, 12, 24),
-    "panel_bg": (20, 20, 35),
-    "text": (240, 240, 255),
-    "subtext": (140, 140, 170),
-    "border": (60, 60, 90),
-    "primary": (0, 229, 255),
-    "secondary": (162, 90, 255),
-    "danger": (239, 72, 120),
-    "success": (16, 185, 129),
-    "warning": (255, 180, 50),
-    "btn_default": (35, 35, 60),
-    "btn_hover": (55, 55, 85),
-    "grad1": (10, 10, 22),
-    "grad2": (28, 22, 50),
-    "panel_alpha": (20, 20, 35, 200),
-    "tile_bg": (32, 32, 55),
-    "section_line": (50, 50, 80),
+    "bg": (9, 11, 13),
+    "panel_bg": (18, 21, 24),
+    "text": (238, 241, 236),
+    "subtext": (142, 151, 148),
+    "border": (49, 56, 58),
+    "primary": (86, 230, 185),
+    "secondary": (255, 184, 108),
+    "danger": (246, 97, 97),
+    "success": (91, 214, 132),
+    "warning": (255, 211, 112),
+    "btn_default": (29, 34, 37),
+    "btn_hover": (42, 49, 52),
+    "grad1": (7, 9, 10),
+    "grad2": (22, 25, 26),
+    "panel_alpha": (18, 21, 24, 238),
+    "tile_bg": (31, 37, 40),
+    "section_line": (61, 69, 68),
 }
 
 LIGHT_COLORS = {
-    "bg": (240, 240, 245),
-    "panel_bg": (255, 255, 255),
-    "text": (30, 30, 50),
-    "subtext": (100, 100, 120),
-    "border": (200, 200, 215),
-    "primary": (0, 150, 200),
-    "secondary": (120, 60, 200),
-    "danger": (220, 50, 90),
-    "success": (10, 160, 110),
-    "warning": (220, 150, 30),
-    "btn_default": (230, 230, 240),
-    "btn_hover": (210, 210, 225),
-    "grad1": (235, 235, 242),
-    "grad2": (220, 218, 230),
-    "panel_alpha": (255, 255, 255, 220),
-    "tile_bg": (220, 220, 235),
-    "section_line": (180, 180, 200),
+    "bg": (243, 244, 240),
+    "panel_bg": (255, 255, 250),
+    "text": (29, 34, 35),
+    "subtext": (102, 111, 108),
+    "border": (204, 210, 205),
+    "primary": (0, 143, 111),
+    "secondary": (196, 109, 40),
+    "danger": (211, 63, 73),
+    "success": (37, 151, 82),
+    "warning": (205, 142, 34),
+    "btn_default": (232, 235, 228),
+    "btn_hover": (218, 224, 216),
+    "grad1": (248, 249, 245),
+    "grad2": (230, 234, 227),
+    "panel_alpha": (255, 255, 250, 242),
+    "tile_bg": (222, 228, 221),
+    "section_line": (186, 196, 188),
 }
 
 _current_theme = "dark"
@@ -88,15 +88,24 @@ def draw_gradient_background(screen):
             g = int(c1[1] + (c2[1] - c1[1]) * f)
             b = int(c1[2] + (c2[2] - c1[2]) * f)
             pygame.draw.line(_bg_surface, (r, g, b), (0, y), (width, y))
+        grid_color = (255, 255, 255, 9) if get_theme() == "dark" else (0, 0, 0, 8)
+        for x in range(0, width, 40):
+            pygame.draw.line(_bg_surface, grid_color, (x, 0), (x, height))
+        for y in range(0, height, 40):
+            pygame.draw.line(_bg_surface, grid_color, (0, y), (width, y))
     screen.blit(_bg_surface, (0, 0))
 
 def get_font(size, bold=False):
     return pygame.font.SysFont(['segoe ui', 'tahoma', 'arial', 'sans-serif'], size, bold=bold)
 
+def readable_text_color(color):
+    luminance = (0.299 * color[0]) + (0.587 * color[1]) + (0.114 * color[2])
+    return (8, 12, 13) if luminance > 145 else t("text")
+
 # ─── Widgets ─────────────────────────────────────────────────────────────────
 
 class Panel:
-    """Cached glassmorphic panel — creates surface only on size change."""
+    """Cached flat panel with a restrained shadow."""
     def __init__(self, rect, radius=12):
         self.rect = pygame.Rect(rect)
         self.radius = radius
@@ -110,9 +119,12 @@ class Panel:
         size = (self.rect.width, self.rect.height)
         if self._cache is None or self._cache_size != size:
             self._cache = pygame.Surface(size, pygame.SRCALPHA)
-            bg = t("panel_alpha")
-            pygame.draw.rect(self._cache, bg, (0, 0, *size), border_radius=self.radius)
-            pygame.draw.rect(self._cache, t("border"), (0, 0, *size), 1, border_radius=self.radius)
+            shadow = pygame.Rect(2, 3, size[0] - 4, size[1] - 4)
+            pygame.draw.rect(self._cache, (0, 0, 0, 70), shadow, border_radius=self.radius)
+            body = pygame.Rect(0, 0, size[0] - 2, size[1] - 2)
+            pygame.draw.rect(self._cache, t("panel_alpha"), body, border_radius=self.radius)
+            pygame.draw.rect(self._cache, t("border"), body, 1, border_radius=self.radius)
+            pygame.draw.line(self._cache, (255, 255, 255, 20), (10, 1), (size[0] - 12, 1), 1)
             self._cache_size = size
         screen.blit(self._cache, self.rect.topleft)
 
@@ -169,7 +181,7 @@ class Button:
         rate = min(1.0, 12.0 * dt)
         for i in range(3):
             self.current_color[i] += (target[i] - self.current_color[i]) * rate
-        self.target_scale = 0.95 if self.is_pressed else (1.05 if self.is_hovered else 1.0)
+        self.target_scale = 0.98 if self.is_pressed else (1.02 if self.is_hovered else 1.0)
         self.scale += (self.target_scale - self.scale) * min(1.0, 18.0 * dt)
 
     def draw(self, screen):
@@ -179,11 +191,13 @@ class Button:
         y = self.rect.centery - h // 2
         draw_rect = pygame.Rect(x, y, w, h)
 
+        shadow_rect = draw_rect.move(0, 2)
+        pygame.draw.rect(screen, (0, 0, 0, 45), shadow_rect, border_radius=self.radius)
         pygame.draw.rect(screen, color, draw_rect, border_radius=self.radius)
         border = t("primary") if self.is_hovered else t("border")
         pygame.draw.rect(screen, border, draw_rect, 1, border_radius=self.radius)
 
-        text_color = (10, 10, 20) if color == list(self.base_color) and self.base_color != t("btn_default") else t("text")
+        text_color = readable_text_color(color)
         surf = self.font.render(self.text, True, text_color)
         screen.blit(surf, surf.get_rect(center=draw_rect.center))
 
@@ -204,7 +218,7 @@ class ToggleButton(Button):
         rate = min(1.0, 12.0 * dt)
         for i in range(3):
             self.current_color[i] += (target[i] - self.current_color[i]) * rate
-        self.target_scale = 0.95 if self.is_pressed else (1.05 if self.is_hovered else 1.0)
+        self.target_scale = 0.98 if self.is_pressed else (1.02 if self.is_hovered else 1.0)
         self.scale += (self.target_scale - self.scale) * min(1.0, 18.0 * dt)
 
     def draw(self, screen):
@@ -214,11 +228,13 @@ class ToggleButton(Button):
         y = self.rect.centery - h // 2
         draw_rect = pygame.Rect(x, y, w, h)
 
+        shadow_rect = draw_rect.move(0, 2)
+        pygame.draw.rect(screen, (0, 0, 0, 45), shadow_rect, border_radius=self.radius)
         pygame.draw.rect(screen, color, draw_rect, border_radius=self.radius)
         border = t("primary") if (self.active or self.is_hovered) else t("border")
         pygame.draw.rect(screen, border, draw_rect, 1, border_radius=self.radius)
 
-        text_color = (10, 10, 20) if self.active else t("text")
+        text_color = readable_text_color(color)
         surf = self.font.render(self.text, True, text_color)
         screen.blit(surf, surf.get_rect(center=draw_rect.center))
 
@@ -324,9 +340,13 @@ class Tile:
         if self.image:
             scaled = pygame.transform.smoothscale(self.image, (self.width, self.height))
             screen.blit(scaled, draw_rect)
-            pygame.draw.rect(screen, (255, 255, 255, 30), draw_rect, 1, border_radius=self.radius)
+            pygame.draw.rect(screen, (0, 0, 0, 55), draw_rect.move(0, 2), 1, border_radius=self.radius)
+            pygame.draw.rect(screen, (255, 255, 255, 46), draw_rect, 1, border_radius=self.radius)
         else:
+            pygame.draw.rect(screen, (0, 0, 0, 85), draw_rect.move(0, 3), border_radius=self.radius)
             pygame.draw.rect(screen, t("tile_bg"), draw_rect, border_radius=self.radius)
+            inner = draw_rect.inflate(-8, -8)
+            pygame.draw.rect(screen, (255, 255, 255, 8), inner, border_radius=max(2, self.radius - 3))
             pygame.draw.rect(screen, t("border"), draw_rect, 1, border_radius=self.radius)
             surf = self.font.render(str(self.value), True, t("primary"))
             screen.blit(surf, surf.get_rect(center=draw_rect.center))
@@ -346,13 +366,14 @@ class ProgressBar:
         self.correct_str = f"{correct}/{total}"
 
     def draw(self, screen):
-        pygame.draw.rect(screen, t("btn_default"), self.rect, border_radius=4)
-        pygame.draw.rect(screen, t("border"), self.rect, 1, border_radius=4)
+        pygame.draw.rect(screen, (0, 0, 0, 60), self.rect.move(0, 1), border_radius=5)
+        pygame.draw.rect(screen, t("btn_default"), self.rect, border_radius=5)
+        pygame.draw.rect(screen, t("border"), self.rect, 1, border_radius=5)
 
         fill_w = int(self.rect.width * (self.pct / 100.0))
         if fill_w > 0:
             fill_rect = pygame.Rect(self.rect.x, self.rect.y, fill_w, self.rect.height)
-            pygame.draw.rect(screen, t("success"), fill_rect, border_radius=4)
+            pygame.draw.rect(screen, t("success"), fill_rect, border_radius=5)
 
         font = get_font(10, bold=True)
         txt = f"{self.pct}%  ({self.correct_str})"
@@ -363,13 +384,17 @@ class ProgressBar:
 class Modal:
     def __init__(self, message, btn1_text, btn1_cb, btn2_text, btn2_cb):
         self.overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        self.overlay.fill((5, 5, 12, 210))
-        self.rect = pygame.Rect(SCREEN_W // 2 - 250, SCREEN_H // 2 - 150, 500, 300)
-        self.panel = Panel(self.rect, radius=16)
-        self.title = Label((self.rect.centerx, self.rect.y + 70), message, font_size=26, bold=True, center=True)
-        btn_y = self.rect.y + 190
-        self.btn1 = Button((self.rect.centerx - 180, btn_y, 160, 48), btn1_text, color=t("success"), callback=btn1_cb)
-        self.btn2 = Button((self.rect.centerx + 20, btn_y, 160, 48), btn2_text, color=t("danger"), callback=btn2_cb)
+        self.overlay.fill((4, 6, 7, 222))
+        self.rect = pygame.Rect(SCREEN_W // 2 - 260, SCREEN_H // 2 - 140, 520, 280)
+        self.panel = Panel(self.rect, radius=14)
+        self.kicker = Label((self.rect.centerx, self.rect.y + 54), "SESSION COMPLETE", font_size=12,
+                            color=t("secondary"), bold=True, center=True)
+        self.title = Label((self.rect.centerx, self.rect.y + 96), message, font_size=24, bold=True, center=True)
+        btn_y = self.rect.y + 184
+        self.btn1 = Button((self.rect.centerx - 178, btn_y, 166, 42), btn1_text, font_size=13,
+                           color=t("success"), callback=btn1_cb)
+        self.btn2 = Button((self.rect.centerx + 12, btn_y, 166, 42), btn2_text, font_size=13,
+                           color=t("danger"), callback=btn2_cb)
 
     def handle_event(self, event):
         self.btn1.handle_event(event)
@@ -382,6 +407,7 @@ class Modal:
     def draw(self, screen):
         screen.blit(self.overlay, (0, 0))
         self.panel.draw(screen)
+        self.kicker.draw(screen)
         self.title.draw(screen)
         self.btn1.draw(screen)
         self.btn2.draw(screen)
@@ -390,12 +416,12 @@ class Modal:
 class ComparisonModal:
     def __init__(self, results, close_cb):
         self.overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        self.overlay.fill((5, 5, 12, 220))
-        self.rect = pygame.Rect(SCREEN_W // 2 - 400, SCREEN_H // 2 - 220, 800, 440)
-        self.panel = Panel(self.rect, radius=16)
-        self.title = Label((self.rect.centerx, self.rect.y + 35), "ALGORITHM COMPARISON", font_size=22, bold=True, center=True)
+        self.overlay.fill((4, 6, 7, 226))
+        self.rect = pygame.Rect(SCREEN_W // 2 - 410, SCREEN_H // 2 - 220, 820, 440)
+        self.panel = Panel(self.rect, radius=14)
+        self.title = Label((self.rect.centerx, self.rect.y + 36), "ALGORITHM COMPARISON", font_size=22, bold=True, center=True)
         self.results = results
-        self.close_btn = Button((self.rect.centerx - 70, self.rect.bottom - 55, 140, 38), "Close", font_size=14, color=t("danger"), callback=close_cb)
+        self.close_btn = Button((self.rect.centerx - 70, self.rect.bottom - 58, 140, 38), "Close", font_size=14, color=t("danger"), callback=close_cb)
 
     def handle_event(self, event):
         self.close_btn.handle_event(event)
@@ -409,8 +435,8 @@ class ComparisonModal:
         self.title.draw(screen)
         self.close_btn.draw(screen)
 
-        headers = ["Algorithm", "Nodes Explored", "Moves", "Time (ms)"]
-        col_x = [self.rect.x + 50, self.rect.x + 300, self.rect.x + 470, self.rect.x + 640]
+        headers = ["Algorithm", "Nodes", "Moves", "Time (ms)"]
+        col_x = [self.rect.x + 54, self.rect.x + 360, self.rect.x + 535, self.rect.x + 670]
         y_start = self.rect.y + 85
 
         font_h = get_font(15, bold=True)
@@ -421,7 +447,10 @@ class ComparisonModal:
         y_row = y_start + 42
         font_r = get_font(14)
         for res in self.results:
-            color = t("subtext") if res["moves"] == "N/A" or res["nodes"] == "10,000+" else t("text")
+            color = (78, 91, 88) if res["moves"] == "N/A" or res["nodes"] == "10,000+" else (18, 24, 24)
+            row_rect = pygame.Rect(self.rect.x + 40, y_row - 8, self.rect.width - 80, 31)
+            pygame.draw.rect(screen, (226, 239, 232), row_rect, border_radius=6)
+            pygame.draw.rect(screen, t("border"), row_rect, 1, border_radius=6)
             screen.blit(font_r.render(res["name"], True, color), (col_x[0], y_row))
             screen.blit(font_r.render(res["nodes"], True, color), (col_x[1], y_row))
             screen.blit(font_r.render(res["moves"], True, color), (col_x[2], y_row))

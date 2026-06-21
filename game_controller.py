@@ -64,6 +64,23 @@ class GameController:
         self.tiles_ui = {}
         self.dashboard = None
         self.search_log = []
+
+    def _notify(self, message, kind="info"):
+        """Show a short UI notification if the dashboard is available."""
+        if self.dashboard and hasattr(self.dashboard, "show_notification"):
+            self.dashboard.show_notification(message, kind)
+
+    def _is_system_running(self):
+        """Return True while solver/search replay is in an active or locked state."""
+        return (
+            self.sim_status == "searching"
+            or self.sim_playing
+            or self.solution_replay_active
+            or getattr(self, "_compare_running", False)
+        )
+
+    def _warn_system_running(self):
+        self._notify("System is running. Stop it before changing settings.", "warning")
     
     def reset_game(self):
         """Reset the game to initial state."""
@@ -443,6 +460,9 @@ class GameController:
     
     def change_size(self, new_size):
         """Change board size."""
+        if self._is_system_running():
+            self._warn_system_running()
+            return
         if self.board_size == new_size:
             return
         self.board_size = new_size
@@ -527,29 +547,49 @@ class GameController:
     def _open_save_dialog(self):
         """Save game directly to slot 0."""
         if self.save_game(slot=0):
-            pass
+            self._notify("Game saved successfully.", "success")
+        else:
+            self._notify("Save failed.", "error")
     
     def _open_load_dialog(self):
         """Load game directly from slot 0."""
-        self.load_game(slot=0)
+        if self._is_system_running():
+            self._warn_system_running()
+            return
+        if self.load_game(slot=0):
+            self._notify("Game loaded successfully.", "success")
+        else:
+            self._notify("No saved game found.", "warning")
     
     def _open_custom_goal_dialog(self):
         """Custom goal: cycle through preset goals instead."""
+        if self._is_system_running():
+            self._warn_system_running()
+            return
         presets = ["default", "spiral", "columns"]
         current_idx = presets.index(self.game.goal_preset) if self.game.goal_preset in presets else 0
         next_idx = (current_idx + 1) % len(presets)
         self._change_goal_preset(presets[next_idx])
     
     def _select_algorithm(self, algo_name):
+        if self._is_system_running():
+            self._warn_system_running()
+            return
         algo_map = {"Bi-A*": "bi_astar", "IDA*": "idastar", "A* Manhattan": "astar_manhattan",
                     "A* misplaced": "astar_misplaced", "GBFS": "gbfs", "Compare all": "compare"}
         self.current_algo = algo_map.get(algo_name, algo_name)
         self.stop_simulation()
     
     def _select_speed(self, speed_name):
+        if self._is_system_running():
+            self._warn_system_running()
+            return
         self.current_speed = speed_name
     
     def _change_goal_preset(self, new_preset):
+        if self._is_system_running():
+            self._warn_system_running()
+            return
         if self.game.goal_preset == new_preset:
             return
         self.game.set_goal_preset(new_preset)
@@ -658,6 +698,7 @@ class GameController:
                     results.append({"name": algo_name, "nodes": "Error", "moves": "N/A", "time": "N/A"})
             
             self._compare_results = results
+            self._compare_running = False
         
         self._compare_results = None
         self._compare_thread = threading.Thread(target=run_in_background, daemon=True)
