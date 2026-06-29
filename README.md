@@ -50,13 +50,57 @@ Trạng thái dự án: **Đang phát triển (In Progress)**.
 
 ## 4. Kiến Trúc Hệ Thống
 
+Dự án sử dụng kiến trúc MVC-inspired với phân chia rõ ràng các module trong các thư mục:
+
+### Cấu trúc thư mục
+
+```
+├── main.py                          # Entry point - Main game loop
+├── README.md
+├── requirements.txt
+├── assets/                          # Hình ảnh, âm thanh
+│   ├── *.png, *.jpg, *.wav
+├── core/                            # Model + Controller + Utilities
+│   ├── __init__.py
+│   ├── game_logic.py               # PuzzleGame - Model: luật chơi, trạng thái
+│   ├── game_controller.py          # GameController - xử lý logic, callback, save/load
+│   ├── search_utils.py             # Tiện ích chung cho các thuật toán tìm kiếm
+│   ├── image_processor.py          # Xử lý ảnh thành các tile puzzle
+│   └── sound_manager.py            # Quản lý âm thanh
+├── solvers/                         # AI Solver Layer
+│   ├── __init__.py
+│   ├── astar_solver.py             # A* solver sử dụng heuristic
+│   ├── bfs_solver.py               # Breadth-First Search solver
+│   └── search_simulators.py        # Các thuật toán tìm kiếm với chế độ mô phỏng
+├── ui/                              # View Layer
+│   ├── __init__.py
+│   ├── system.py                   # Widgets: Panel, Button, Tile, Modal, ProgressBar
+│   └── statistics.py               # GameDashboard - Bảng điều khiển chính
+└── tests/                           # Unit tests
+    ├── __init__.py
+    ├── test_features.py            # Kiểm tra logic game, solver
+    ├── test_columns.py             # Kiểm tra goal preset columns
+    └── test_spiral.py              # Kiểm tra goal preset spiral
+```
+
+### Mô tả các thư mục chức năng
+
+| Thư mục | Chức năng |
+|---------|-----------|
+| `main.py` | Điểm khởi động, vòng lặp Pygame chính, render và xử lý events |
+| `core/` | Chứa Model (PuzzleGame), Controller (GameController), và các tiện ích |
+| `solvers/` | Triển khai các thuật toán AI: BFS, A*, IDA*, GBFS, Bi-directional A* |
+| `ui/` | Giao diện người dùng: widgets và dashboard |
+| `tests/` | Các script kiểm thử tự động cho game logic và solvers |
+| `assets/` | Tài nguyên tĩnh: hình ảnh, âm thanh |
+
 Dự án sử dụng kiến trúc MVC-inspired:
 
 - **Main Loop:** `main.py` đảm nhiệm vòng lặp Pygame, nhận event, cập nhật trạng thái và render giao diện.
 - **Controller:** `GameController` giữ trạng thái game, xử lý callback từ UI, điều khiển solver, lưu/load, xuất log, high score và âm thanh.
-- **View:** `GameDashboard`, `ui_system.py` và `ui_statistics.py` chịu trách nhiệm vẽ panel, button, tile, modal, progress bar, thống kê và overlay tìm kiếm.
-- **Model:** `PuzzleGame` quản lý luật chơi, trạng thái bàn cờ, undo/redo, solvability, goal preset và tiến độ.
-- **AI Solver Layer:** `search_simulators.py`, `astar_solver.py`, `bfs_solver.py` và `search_utils.py` triển khai các thuật toán tìm kiếm.
+- **View:** `GameDashboard` (ui/statistics.py), `ui/system.py` chịu trách nhiệm vẽ panel, button, tile, modal, progress bar, thống kê và overlay tìm kiếm.
+- **Model:** `PuzzleGame` (core/game_logic.py) quản lý luật chơi, trạng thái bàn cờ, undo/redo, solvability, goal preset và tiến độ.
+- **AI Solver Layer:** `solvers/search_simulators.py`, `solvers/astar_solver.py`, `solvers/bfs_solver.py` và `core/search_utils.py` triển khai các thuật toán tìm kiếm.
 - **Hạ tầng phụ trợ:** `image_processor.py`, `sound_manager.py`, `high_scores.json` và thư mục `saves/`.
 
 ```mermaid
@@ -66,13 +110,13 @@ flowchart TD
         R[Render Loop]
     end
 
-    subgraph UI["UI Layer"]
-        D[GameDashboard<br/>ui_statistics.py]
-        W[Widgets<br/>Panel, Button, Tile, Modal<br/>ui_system.py]
+    subgraph UI["UI Layer (ui/)"]
+        D[GameDashboard<br/>statistics.py]
+        W[Widgets<br/>Panel, Button, Tile, Modal<br/>system.py]
         P[Stats & Overlay<br/>Progress, Labels, Search Overlay]
     end
 
-    subgraph Controller["Controller Layer"]
+    subgraph Controller["Controller Layer (core/)"]
         GC[GameController<br/>game_controller.py]
         SIM[Simulation State<br/>path, speed, log, replay]
         IO[Save/Load & Export Log]
@@ -80,12 +124,12 @@ flowchart TD
         SND[Sound Manager]
     end
 
-    subgraph Model["Model Layer"]
+    subgraph Model["Model Layer (core/)"]
         PG[PuzzleGame<br/>game_logic.py]
         SU[Search Utils<br/>search_utils.py]
     end
 
-    subgraph AI["AI Solver Layer"]
+    subgraph AI["AI Solver Layer (solvers/)"]
         SS[search_simulators.py]
         BFS[bfs_solver.py]
         AS[astar_solver.py]
@@ -387,7 +431,7 @@ git checkout -b feature/ten-tinh-nang
 4. Chạy kiểm tra nhanh nếu có thay đổi logic:
 
 ```bash
-python test_features.py
+python tests/test_features.py
 ```
 
 5. Commit thay đổi với message rõ ràng.
