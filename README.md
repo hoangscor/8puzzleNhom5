@@ -267,14 +267,14 @@ python main.py
 ### 7.6 Chạy kiểm tra nhanh
 
 ```bash
-python test_features.py
+python tests/test_features.py
 ```
 
 Các script kiểm tra goal preset:
 
 ```bash
-python test_spiral.py
-python test_columns.py
+python tests/test_spiral.py
+python tests/test_columns.py
 ```
 
 ### 7.7 Đóng gói optional
@@ -283,6 +283,8 @@ Nếu muốn build file `.exe` bằng PyInstaller:
 
 ```bash
 pyinstaller main.spec
+or
+pyinstaller --onefile --windowed main.py
 ```
 
 File build sẽ nằm trong thư mục `dist/`.

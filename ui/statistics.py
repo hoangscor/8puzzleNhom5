@@ -1,5 +1,5 @@
 import pygame
-from ui_system import (Panel, Label, Button, ToggleButton, SectionHeader, ProgressBar,
+from ui.system import (Panel, Label, Button, ToggleButton, SectionHeader, ProgressBar,
                        t, get_font, SCREEN_W, SCREEN_H)
 
 # ─── Layout Constants ────────────────────────────────────────────────────────
@@ -80,18 +80,18 @@ class GameDashboard:
         sx = STATS_X + 18
         sy = STATS_Y + 11
 
-        self.nodes_label = Label((sx, sy), "Explored 0", font_size=12, color=t("subtext"))
+        self.nodes_label = Label((sx, sy), "Explored 0", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.nodes_label)
-        self.frontier_label = Label((sx + 145, sy), "Frontier 0", font_size=12, color=t("subtext"))
+        self.frontier_label = Label((sx + 145, sy), "Frontier 0", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.frontier_label)
-        self.h_label = Label((sx + 302, sy), "h 0", font_size=12, color=t("subtext"))
+        self.h_label = Label((sx + 302, sy), "h: 0", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.h_label)
 
-        self.f_label = Label((sx, sy + 26), "f 0", font_size=12, color=t("subtext"))
+        self.f_label = Label((sx, sy + 26), "f: 0", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.f_label)
-        self.depth_label = Label((sx + 82, sy + 26), "g 0", font_size=12, color=t("subtext"))
+        self.depth_label = Label((sx + 82, sy + 26), "g: 0", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.depth_label)
-        self.duration_label = Label((sx + 164, sy + 26), "0.0 ms", font_size=12, color=t("subtext"))
+        self.duration_label = Label((sx + 164, sy + 26), "duration: 0.0 ms", font_size=12, color=t("subtext"), bold=True)
         self.elements.append(self.duration_label)
 
         # Legend

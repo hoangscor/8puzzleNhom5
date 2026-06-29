@@ -6,11 +6,11 @@ Tests game logic, solvers, and basic functionality without GUI.
 
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from game_logic import PuzzleGame
-import bfs_solver
-import astar_solver
+from core.game_logic import PuzzleGame
+import solvers.bfs_solver
+import solvers.astar_solver
 
 def test_game_logic():
     """Test basic game logic: moves, undo, redo, solvability."""
@@ -52,14 +52,14 @@ def test_solvers():
     goal = [1, 2, 3, 4, 5, 6, 7, 8, 0]
 
     # Test BFS
-    path_bfs, nodes_bfs, time_bfs = bfs_solver.solve(initial, goal)
+    path_bfs, nodes_bfs, time_bfs = solvers.bfs_solver.solve(initial, goal)
     assert path_bfs is not None, "BFS should find solution"
     assert len(path_bfs) > 0, "BFS path should not be empty"
     assert nodes_bfs > 0, "BFS should explore nodes"
     assert time_bfs >= 0, "BFS time should be non-negative"
 
     # Test A*
-    path_astar, nodes_astar, time_astar = astar_solver.solve(initial, goal)
+    path_astar, nodes_astar, time_astar = solvers.astar_solver.solve(initial, goal)
     assert path_astar is not None, "A* should find solution"
     assert len(path_astar) > 0, "A* path should not be empty"
     assert nodes_astar > 0, "A* should explore nodes"
@@ -75,7 +75,7 @@ def test_image_processor():
     """Test image processing (if PIL available)."""
     print("Testing Image Processor...")
     try:
-        from image_processor import load_and_split_image
+        from core.image_processor import load_and_split_image
         # This would require an actual image file, so just test import
         print("✓ Image processor import successful")
     except ImportError as e:

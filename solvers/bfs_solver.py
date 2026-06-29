@@ -3,7 +3,7 @@ BFS solver for N-Puzzle - optimized using shared utilities.
 """
 import collections
 import time
-from search_utils import get_neighbors
+from core.search_utils import get_neighbors
 
 
 def solve(initial_state, goal_state, size=3):

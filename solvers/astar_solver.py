@@ -3,7 +3,7 @@ A* solver for N-Puzzle - optimized using shared utilities.
 """
 import heapq
 import time
-from search_utils import get_neighbors, manhattan_distance, build_goal_position_map
+from core.search_utils import get_neighbors, manhattan_distance, build_goal_position_map
 
 
 def solve(initial_state, goal_state, size=3):

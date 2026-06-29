@@ -1,5 +1,5 @@
 import random
-from search_utils import get_neighbors
+from core.search_utils import get_neighbors
 
 
 class PuzzleGame:

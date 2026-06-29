@@ -7,10 +7,10 @@ import json
 import os
 from typing import Dict, List, Optional, Callable
 import pygame
-from game_logic import PuzzleGame
-import search_simulators
-from image_processor import load_and_split_image
-from ui_system import Tile, get_font
+from core.game_logic import PuzzleGame
+import solvers.search_simulators
+from core.image_processor import load_and_split_image
+from ui.system import Tile, get_font
 
 
 class GameController:
@@ -383,7 +383,7 @@ class GameController:
     
     def trigger_victory(self):
         """Trigger victory modal."""
-        from ui_system import Modal
+        from ui.system import Modal
         self.is_finished = True
         self._compute_optimal_moves()
         self._save_high_score()
@@ -432,7 +432,7 @@ class GameController:
     
     def _compute_optimal_moves(self):
         """Compute optimal move count using A* solver."""
-        import astar_solver
+        import solvers.astar_solver
         initial = self.initial_game_state if self.initial_game_state else self.sim_initial_state
         if not initial:
             return
@@ -485,7 +485,7 @@ class GameController:
     
     def recreate_tiles_ui(self):
         """Recreate tile UI elements."""
-        from ui_system import Tile, get_font
+        from ui.system import Tile, get_font
         
         self.tiles_ui.clear()
         

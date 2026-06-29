@@ -1,13 +1,13 @@
 import pygame
 import sys
 import os
-from image_processor import load_and_split_image
-from ui_system import draw_gradient_background, t, SCREEN_W, SCREEN_H
-from ui_statistics import GameDashboard
-from game_logic import PuzzleGame
-from game_controller import GameController
-from sound_manager import SoundManager
-import search_simulators
+from core.image_processor import load_and_split_image
+from ui.system import draw_gradient_background, t, SCREEN_W, SCREEN_H
+from ui.statistics import GameDashboard
+from core.game_logic import PuzzleGame
+from core.game_controller import GameController
+from core.sound_manager import SoundManager
+import solvers.search_simulators
 import time
 
 def main():
@@ -164,7 +164,7 @@ def main():
         controller.dashboard.update(dt)
 
         if hasattr(controller, '_compare_results') and controller._compare_results is not None and not controller.comparison_modal:
-            from ui_system import ComparisonModal
+            from ui.system import ComparisonModal
             controller.comparison_modal = ComparisonModal(controller._compare_results, controller._close_compare_solvers)
             controller._compare_results = None
         

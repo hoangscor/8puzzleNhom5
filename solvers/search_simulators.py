@@ -4,7 +4,7 @@ Provides visualization-friendly generators for A*, GBFS, IDA*, and Bi-directiona
 """
 import heapq
 import time
-from search_utils import get_neighbors, manhattan_distance, misplaced_tiles, build_goal_position_map
+from core.search_utils import get_neighbors, manhattan_distance, misplaced_tiles, build_goal_position_map
 
 
 def get_empty_positions(states, size):

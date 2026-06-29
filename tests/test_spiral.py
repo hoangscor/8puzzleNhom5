@@ -1,5 +1,5 @@
-from game_logic import PuzzleGame
-from search_simulators import astar_simulator
+from core.game_logic import PuzzleGame
+from solvers.search_simulators import astar_simulator
 
 # Test with spiral goal
 game = PuzzleGame(size=3)
